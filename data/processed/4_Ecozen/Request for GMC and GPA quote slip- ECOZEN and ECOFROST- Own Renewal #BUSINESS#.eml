@@ -1,0 +1,712 @@
+Delivered-To: ritika.khare@loophealth.com
+Received: by 2002:a05:6358:63aa:b0:123:404e:6b86 with SMTP id k42csp2147388rwh;
+        Mon, 15 May 2023 09:33:07 -0700 (PDT)
+X-Received: by 2002:ac2:5ddc:0:b0:4eb:2d47:602 with SMTP id x28-20020ac25ddc000000b004eb2d470602mr6037892lfq.59.1684168387247;
+        Mon, 15 May 2023 09:33:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1684168387; cv=none;
+        d=google.com; s=arc-20160816;
+        b=B+2uawVOBnwKjqBKyM/1xiTXPWBCvn2LDodKMIBRWBWkfUB6/mJCZtWDbfg2VZD24C
+         tFqWhLUMzP/F71IXGqPyvDsIKxzdvvUsDEn0qLisjZnpo+PdSa3MdkSVhHbZ+IR1u/7o
+         JipP0KTtHsVDbIRL5C+1tBlEnBAadVOdheZ4nFXNMTHPFdkvFWhSj8ZEZcn1vmszbAfk
+         2/OC+SkfGuHcO1P2CMKiWC+nK0SsquUdAC6nCQ1B51FY1w2poqUmYdGizoNDsQKgnpG7
+         s0Rqxs/s+xQp+1qU4xAYKU5EGZppAQMNRTj2DhecOV5R00ax4vIO7i6piNiH+gCp9DAQ
+         6MCQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=HmESY3hP3ngcJxVnt1NSecIp29IkqviQr/unALyGkh4=;
+        b=GBeGp/9Nbpu1zsfdbHgeaDPUjzkCwTihLziMsDSgXuW7LDClRUPPdq/SJPoWBcBAOX
+         7zYnjj2mzOKrUbzCWSKPo100SyxkglER4ZIoiRRw03xyQ3FkmgkKrTyp1yxNxBzxSf8h
+         IDjhVbuDyNaa99L94M9MkDi+c5EesVFtoEAM6sI2DqZs4oP7+tx4XuBjSSn2aIwuYB08
+         +ChVfkju1/SPoCw1pasCk11xePj5qjilAxlj5rSPwbJDKG2dFx96f/U7wO9KWk8LS1KH
+         BlT45eei4vQhLUnKrhDOZOX7PK0JdcgqTVeK/3lCQcJJycmG+QX6tyMJTjINPiJWzaI2
+         zpcQ==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@loophealth.com header.s=google header.b=GjKV0B1W;
+       spf=pass (google.com: domain of shriram.kulkarni@loophealth.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shriram.kulkarni@loophealth.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=loophealth.com
+Return-Path: <shriram.kulkarni@loophealth.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o8-20020a05651205c800b004e7fc2bbb65sor4375157lfo.17.2023.05.15.09.33.06
+        for <ritika.khare@loophealth.com>
+        (Google Transport Security);
+        Mon, 15 May 2023 09:33:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shriram.kulkarni@loophealth.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@loophealth.com header.s=google header.b=GjKV0B1W;
+       spf=pass (google.com: domain of shriram.kulkarni@loophealth.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shriram.kulkarni@loophealth.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=loophealth.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=loophealth.com; s=google; t=1684168386; x=1686760386;
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:from:to:cc:subject:date:message-id:reply-to;
+        bh=HmESY3hP3ngcJxVnt1NSecIp29IkqviQr/unALyGkh4=;
+        b=GjKV0B1WTrNoNQ8uFhmFyox6yQFCwkQT58lEcZuoJMR1+fwBzJuO3nSp1jhgCgIQVC
+         dOZeEBbnGTMSlGVXwNmfwLVNDABnd3G9+wytCrSKbfx4ZW6/UwobnC7QMhh4spimekuJ
+         AQvt/e3I52mKoulKj0Q6RODmta0+JrzsKpazGgKI516NmemqbE12voA/qndFNsHkHYp6
+         +j5OUnjRA/kphQ7E+QT4Nt8RDdWl8qCvxCdvpO8gTtjIuI9LgQnHyV7r4C6TrAMTORio
+         THWpSr/MHM+suY9cKoL8y42tfgs7eTEapRnQlac/+RpjqVc84+PULcHMlFvATE7CvV41
+         kPDw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20221208; t=1684168386; x=1686760386;
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:x-gm-message-state:from:to:cc:subject:date:message-id
+         :reply-to;
+        bh=HmESY3hP3ngcJxVnt1NSecIp29IkqviQr/unALyGkh4=;
+        b=ZJWXnG1LRw73fBwuOxkeJI9GH73/YfFU9zgoGQhJnQ2834AzzHOjvQmIGKoMObQgXk
+         szfUewNJseRThhgVmeQ2iyiL6l/dn8hAU7iCtIkQSem93SFZTg8JBrW8uk/Lcj3FzI+B
+         TRDL1bg7tWz/cUErahSK7VGb0aKUol5sTe7mZazKqJbJEjBrZKmtM/iFvciI/vEeXwZY
+         iSH6NAyUpdIUnWr5UaRK4l9/H/1Yqc3BYFV/tsOFGtGYQO+tHYAKFXIJLBdCHr9QpXAY
+         zwo52n9U1s/Ktfx1y6My97wM4WHtIgnrFKWDH+8zAivasFLAtQvPPUhKKkLxk64ObCtx
+         2c2w==
+X-Gm-Message-State: AC+VfDyRx81debyMA8fzl/SCtMMIZE4389dKlca1v7n4pLx9DxSIMG1c
+	O0AAUAtmDTv+2JnixHvU6ECZseRsxnwhKm1DRjSJGEth
+X-Google-Smtp-Source: ACHHUZ7gMLsi16b4jdDIgAcDGO5rfVdJjUSrKaUS+OecZznXcUAdY0HKlas4yzQp4ZUZMrdyiBmxtt9ivBjvSqxmI+g=
+X-Received: by 2002:ac2:4c8e:0:b0:4ec:8a12:9e70 with SMTP id
+ d14-20020ac24c8e000000b004ec8a129e70mr5475132lfl.46.1684168386589; Mon, 15
+ May 2023 09:33:06 -0700 (PDT)
+MIME-Version: 1.0
+References: <BM1PR01MB352426AFB12DF26DC5C8C367E7779@BM1PR01MB3524.INDPRD01.PROD.OUTLOOK.COM>
+In-Reply-To: <BM1PR01MB352426AFB12DF26DC5C8C367E7779@BM1PR01MB3524.INDPRD01.PROD.OUTLOOK.COM>
+From: Shriram Kulkarni <shriram.kulkarni@loophealth.com>
+Date: Mon, 15 May 2023 22:02:54 +0530
+Message-ID: <CAOh_GW85LCfsHTz1_HRwKFA1mE_-DK=07XRyjxoy1=ctBRsDag@mail.gmail.com>
+Subject: Re: Request for GMC and GPA quote slip- ECOZEN and ECOFROST- Own
+ Renewal #BUSINESS#
+To: "Vandana Koul /RCLG/ICICILOMBARD/PNE" <vandana.koul@icicilombard.com>
+Cc: "Sanjay Yadav /RCLG/ICICILOMBARD/PNE" <sanjay.yadav@icicilombard.com>, 
+	"ritika.khare@loophealth.com" <ritika.khare@loophealth.com>, 
+	"sanket.kulkarni@loophealth.com" <sanket.kulkarni@loophealth.com>
+Content-Type: multipart/alternative; boundary="0000000000006ce0bf05fbbe02b5"
+
+--0000000000006ce0bf05fbbe02b5
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Dear Madam,
+
+Thanks for your support !!
+Please find below UTR for your reference.
+Transaction Posted Date Cheque. No./Ref. No. Transaction Remarks Withdrawal
+Amt (INR)
+15/05/2023 02:39:29 PM   INF/INFT/032211934411/Insuracne Payment/ICICI
+Lombard 87,994.00
+15/05/2023 02:40:30 PM   INF/INFT/032211952871/Insuracne Payment/ICICI
+Lombard 5,00,000.00
+15/05/2023 03:24:29 PM   INF/INFT/032212702241/ICICILombard 4,12,006.00
+
+Kindly help me with Held cover letter by tomorrow.
+
+Shriram Kulkarni
+
+------------------------------
+
+<https://www.loophealth.com/>
+
+2nd Floor, Vikram Nandadeep, Patrakar Nagar Road, Pune - 411 016
+
++91 9112 869 779
+
+<http://www.loophealth.com>
+
+<https://www.linkedin.com/company/loop-health/>
+<https://www.instagram.com/loophealthindia/>
+<https://twitter.com/loophealthHQ>
+<https://www.facebook.com/loophealthindia/>
+<https://www.youtube.com/channel/UCPUc_YWsi_oj5oYjt0yjAZg>
+
+
+On Wed, May 10, 2023 at 11:47=E2=80=AFAM Vandana Koul /RCLG/ICICILOMBARD/PN=
+E <
+vandana.koul@icicilombard.com> wrote:
+
+> Dear Shriram Ji
+>
+>
+>
+> As discussed on call , Please find the attached Quotation.
+>
+> Kindly help to close the same.
+>
+>
+>
+>
+>
+>
+>
+>
+>
+> *Best Regards.*
+>
+> Vandana Koul
+>
+> Senior Manager
+>
+> Email: Vandana.koul@icicilombard.com
+>
+> Mobile No. 7208929469 / 9607677786
+>
+> ICICI Lombard, 3rd Floor, Plot No.246, Manikchand Ikon, =E2=80=98C=E2=80=
+=99 Wing, Pune -
+> 01
+>
+> *From:* Sanjay Yadav /RCLG/ICICILOMBARD/PNE
+> *Sent:* 10 May 2023 10:24
+> *To:* Vandana Koul /RCLG/ICICILOMBARD/PNE <vandana.koul@icicilombard.com>
+> *Subject:* FW: Request for GMC and GPA quoteslip- Ecozen and Ecofrost-
+> Own Renewal
+>
+>
+>
+>
+>
+>
+>
+> *From:* Anjali Nishu [mailto:anjali.nishu@loophealth.com
+> <anjali.nishu@loophealth.com>]
+> *Sent:* 05 May 2023 14:55
+> *To:* Sanjay Yadav /RCLG/ICICILOMBARD/PNE <sanjay.yadav@icicilombard.com>
+> *Cc:* Sachin Sadafule <sachin.sadafule@loophealth.com>; Ritika Khare <
+> ritika.khare@loophealth.com>; Debleena Gutta <
+> debleena.gutta@loophealth.com>; Sanket Kulkarni <
+> sanket.kulkarni@loophealth.com>
+> *Subject:* Request for GMC and GPA quoteslip- Ecozen and Ecofrost- Own
+> Renewal
+>
+>
+>
+>
+>
+> [External Email Warning: Do not click on any attachment or links/URL in
+> this email unless sender is reliable]
+>
+> Hi Sanjay
+>
+>
+>
+> PFA GMC and GPA quoteslip of above client.
+>
+>
+>
+> Request you to share the quotes at the earliest
+>
+> --
+>
+> Anjali Nishu
+>
+> Assistant Manager-Placement
+> ------------------------------
+>
+> <https://www.loophealth.com/>
+>
+> 2nd Floor, Vikram Nandadeep, Patrakar Nagar Road, Pune - 411 016
+>
+> +917020836197
+>
+> <http://www.loophealth.com/>
+>
+> <https://www.linkedin.com/company/loop-health/>
+> <https://www.instagram.com/loophealthindia/>
+> <https://twitter.com/loophealthHQ>
+> <https://www.facebook.com/loophealthindia/>
+> <https://www.youtube.com/channel/UCPUc_YWsi_oj5oYjt0yjAZg>
+>
+>
+> =E2=80=9CPlease note that this email and message, including any attachmen=
+ts, is
+> intended solely for the individual (s) or entity (ies) to whom it is
+> addressed and may contain information that is private, confidential and
+> privileged. In case you are not the intended recipient, request you to
+> notify the sender by reply mail and delete this email, including any copi=
+es
+> or attachments from your system. Any unauthorized dissemination,
+> disclosure, copy and/or use of the contents of this communication,
+> including the attachment, to anyone is strictly prohibited and punishable
+> by law.
+>
+> Opinions, conclusions and statements of intent expressed in this e-mail
+> are of the sender and ICICI Lombard General Insurance Company Limited
+> (Company) does not accept liability for the views expressed in this email
+> unless confirmed by an authorized representative of the Company
+> independently of this communication. E-mail transmission cannot be
+> guaranteed to be secure or error-free as information could be intercepted=
+,
+> corrupted, lost, destroyed, incomplete or contain viruses and the Company
+> accepts no liability for any damage caused by the limitations of the e-ma=
+il
+> transmission.=E2=80=9D
+>
+
+--0000000000006ce0bf05fbbe02b5
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Dear Madam,<div><br></div><div>Thanks for your support !!<=
+/div><div><div>Please find below UTR for your reference.</div><div><table b=
+order=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"1093" style=3D"bor=
+der-collapse:collapse;width:820pt"><colgroup><col width=3D"159" style=3D"wi=
+dth:119pt"><col width=3D"142" style=3D"width:107pt"><col width=3D"647" styl=
+e=3D"width:485pt"><col width=3D"145" style=3D"width:109pt"></colgroup><tbod=
+y><tr height=3D"20" style=3D"height:15pt"><td height=3D"20" width=3D"159" s=
+tyle=3D"height:15pt;width:119pt;text-align:center;vertical-align:middle;bor=
+der:1pt solid windowtext;padding-top:1px;padding-right:1px;padding-left:1px=
+;color:black;font-size:11pt;font-family:Calibri,sans-serif;white-space:nowr=
+ap">Transaction Posted Date</td><td width=3D"142" style=3D"border-left:none=
+;width:107pt;text-align:center;vertical-align:middle;border-top:1pt solid w=
+indowtext;border-right:1pt solid windowtext;border-bottom:1pt solid windowt=
+ext;padding-top:1px;padding-right:1px;padding-left:1px;color:black;font-siz=
+e:11pt;font-family:Calibri,sans-serif;white-space:nowrap">Cheque. No./Ref. =
+No.</td><td width=3D"647" style=3D"border-left:none;width:485pt;text-align:=
+center;vertical-align:middle;border-top:1pt solid windowtext;border-right:1=
+pt solid windowtext;border-bottom:1pt solid windowtext;padding-top:1px;padd=
+ing-right:1px;padding-left:1px;color:black;font-size:11pt;font-family:Calib=
+ri,sans-serif;white-space:nowrap">Transaction Remarks</td><td width=3D"145"=
+ style=3D"border-left:none;width:109pt;text-align:center;vertical-align:mid=
+dle;border-top:1pt solid windowtext;border-right:1pt solid windowtext;borde=
+r-bottom:1pt solid windowtext;padding-top:1px;padding-right:1px;padding-lef=
+t:1px;color:black;font-size:11pt;font-family:Calibri,sans-serif;white-space=
+:nowrap">Withdrawal Amt (INR)</td></tr><tr height=3D"20" style=3D"height:15=
+pt"><td height=3D"20" style=3D"height:15pt;border-top:none;text-align:cente=
+r;vertical-align:middle;border-right:1pt solid windowtext;border-bottom:1pt=
+ solid windowtext;border-left:1pt solid windowtext;padding-top:1px;padding-=
+right:1px;padding-left:1px;color:black;font-size:11pt;font-family:Calibri,s=
+ans-serif;white-space:nowrap">15/05/2023 02:39:29 PM</td><td style=3D"borde=
+r-top:none;border-left:none;text-align:center;vertical-align:middle;border-=
+right:1pt solid windowtext;border-bottom:1pt solid windowtext;padding-top:1=
+px;padding-right:1px;padding-left:1px;color:black;font-size:11pt;font-famil=
+y:Calibri,sans-serif;white-space:nowrap">=C2=A0</td><td style=3D"border-top=
+:none;border-left:none;vertical-align:middle;border-right:1pt solid windowt=
+ext;border-bottom:1pt solid windowtext;padding-top:1px;padding-right:1px;pa=
+dding-left:1px;color:black;font-size:11pt;font-family:Calibri,sans-serif;wh=
+ite-space:nowrap">INF/INFT/032211934411/Insuracne Payment/ICICI Lombard</td=
+><td style=3D"border-top:none;border-left:none;text-align:right;vertical-al=
+ign:middle;border-right:1pt solid windowtext;border-bottom:1pt solid window=
+text;padding-top:1px;padding-right:1px;padding-left:1px;color:black;font-si=
+ze:11pt;font-family:Calibri,sans-serif;white-space:nowrap">87,994.00</td></=
+tr><tr height=3D"20" style=3D"height:15pt"><td height=3D"20" style=3D"heigh=
+t:15pt;border-top:none;text-align:center;vertical-align:middle;border-right=
+:1pt solid windowtext;border-bottom:1pt solid windowtext;border-left:1pt so=
+lid windowtext;padding-top:1px;padding-right:1px;padding-left:1px;color:bla=
+ck;font-size:11pt;font-family:Calibri,sans-serif;white-space:nowrap">15/05/=
+2023 02:40:30 PM</td><td style=3D"border-top:none;border-left:none;text-ali=
+gn:center;vertical-align:middle;border-right:1pt solid windowtext;border-bo=
+ttom:1pt solid windowtext;padding-top:1px;padding-right:1px;padding-left:1p=
+x;color:black;font-size:11pt;font-family:Calibri,sans-serif;white-space:now=
+rap">=C2=A0</td><td style=3D"border-top:none;border-left:none;vertical-alig=
+n:middle;border-right:1pt solid windowtext;border-bottom:1pt solid windowte=
+xt;padding-top:1px;padding-right:1px;padding-left:1px;color:black;font-size=
+:11pt;font-family:Calibri,sans-serif;white-space:nowrap">INF/INFT/032211952=
+871/Insuracne Payment/ICICI Lombard</td><td style=3D"border-top:none;border=
+-left:none;text-align:right;vertical-align:middle;border-right:1pt solid wi=
+ndowtext;border-bottom:1pt solid windowtext;padding-top:1px;padding-right:1=
+px;padding-left:1px;color:black;font-size:11pt;font-family:Calibri,sans-ser=
+if;white-space:nowrap">5,00,000.00</td></tr></tbody></table></div><div><tab=
+le border=3D"0" cellpadding=3D"0" cellspacing=3D"0" width=3D"1205" style=3D=
+"border-collapse:collapse;width:904pt"><colgroup><col width=3D"159" style=
+=3D"width:119pt"><col width=3D"142" style=3D"width:107pt"><col width=3D"759=
+" style=3D"width:569pt"><col width=3D"145" style=3D"width:109pt"></colgroup=
+><tbody><tr height=3D"20" style=3D"height:15pt"><td height=3D"20" width=3D"=
+159" style=3D"height:15pt;width:119pt;text-align:center;vertical-align:midd=
+le;border:1pt solid windowtext;padding-top:1px;padding-right:1px;padding-le=
+ft:1px;color:black;font-size:11pt;font-family:Calibri,sans-serif;white-spac=
+e:nowrap">15/05/2023 03:24:29 PM</td><td width=3D"142" style=3D"border-left=
+:none;width:107pt;text-align:center;vertical-align:middle;border-top:1pt so=
+lid windowtext;border-right:1pt solid windowtext;border-bottom:1pt solid wi=
+ndowtext;padding-top:1px;padding-right:1px;padding-left:1px;color:black;fon=
+t-size:11pt;font-family:Calibri,sans-serif;white-space:nowrap">=C2=A0</td><=
+td width=3D"759" style=3D"border-left:none;width:569pt;vertical-align:middl=
+e;border-top:1pt solid windowtext;border-right:1pt solid windowtext;border-=
+bottom:1pt solid windowtext;padding-top:1px;padding-right:1px;padding-left:=
+1px;color:black;font-size:11pt;font-family:Calibri,sans-serif;white-space:n=
+owrap">INF/INFT/032212702241/ICICILombard</td><td width=3D"145" style=3D"bo=
+rder-left:none;width:109pt;text-align:right;vertical-align:middle;border-to=
+p:1pt solid windowtext;border-right:1pt solid windowtext;border-bottom:1pt =
+solid windowtext;padding-top:1px;padding-right:1px;padding-left:1px;color:b=
+lack;font-size:11pt;font-family:Calibri,sans-serif;white-space:nowrap">4,12=
+,006.00</td></tr></tbody></table></div><div><br></div>Kindly help me with H=
+eld cover letter by tomorrow.</div><div><br class=3D"gmail-Apple-interchang=
+e-newline"><div><div dir=3D"ltr" class=3D"gmail_signature" data-smartmail=
+=3D"gmail_signature"><div dir=3D"ltr"><span><div dir=3D"ltr" style=3D"margi=
+n-left:0pt" align=3D"left"><table style=3D"border:none;border-collapse:coll=
+apse"><colgroup><col width=3D"178"><col width=3D"233"></colgroup><tbody><tr=
+ style=3D"height:27.297pt"><td colspan=3D"2" style=3D"vertical-align:top;pa=
+dding:5pt 5pt 5pt 5pt;overflow:hidden"><p dir=3D"ltr" style=3D"line-height:=
+1.2;margin-top:0pt;margin-bottom:0pt"><span style=3D"font-size:14pt;font-fa=
+mily:&quot;Work Sans&quot;,sans-serif;color:rgb(0,0,0);background-color:tra=
+nsparent;vertical-align:baseline;white-space:pre-wrap">Shriram Kulkarni</sp=
+an></p></td></tr><tr style=3D"height:11.335637501387886pt"><td colspan=3D"2=
+" style=3D"vertical-align:top;padding:5pt 5pt 5pt 5pt;overflow:hidden"><p d=
+ir=3D"ltr" style=3D"line-height:0.12;margin-top:0pt;margin-bottom:0pt"></p>=
+<hr><p></p></td></tr><tr style=3D"height:21pt"><td rowspan=3D"3" style=3D"v=
+ertical-align:top;padding:5pt 5pt 5pt 5pt;overflow:hidden"><p dir=3D"ltr" s=
+tyle=3D"line-height:0.072;margin-top:0pt;margin-bottom:10pt"><a href=3D"htt=
+ps://www.loophealth.com/" target=3D"_blank"><span style=3D"font-size:11pt;f=
+ont-family:&quot;Work Sans&quot;,sans-serif;color:rgb(17,85,204);background=
+-color:transparent;vertical-align:baseline;white-space:pre-wrap"><span styl=
+e=3D"border:none;display:inline-block;overflow:hidden;width:86px;height:38p=
+x"><img src=3D"https://lh5.googleusercontent.com/VAiNehwUx-fYpynAnXeiw9U4ud=
+A4csTVUYM_lXWm-cxTaJKEX6aNOmh1KOVzP4Xp8XcTSgymJtglliAvDavlOAAbozNpQV-WrP9tf=
+kXxLdhQw_IGhSxfEXu7BsNj7PaE2CdORjI7" width=3D"86" height=3D"40.326530612244=
+9" style=3D"margin-left:0px"></span></span></a></p><p dir=3D"ltr" style=3D"=
+line-height:1.2;margin-top:0pt;margin-bottom:0pt"><span style=3D"font-size:=
+7pt;font-family:&quot;Work Sans&quot;,sans-serif;color:rgb(89,89,89);backgr=
+ound-color:transparent;vertical-align:baseline;white-space:pre-wrap">2nd Fl=
+oor, Vikram Nandadeep, Patrakar Nagar Road, Pune - 411 016</span></p></td><=
+td rowspan=3D"2" style=3D"vertical-align:top;padding:5pt 5pt 5pt 5pt;overfl=
+ow:hidden"><p dir=3D"ltr" style=3D"line-height:0.6;text-align:right;margin-=
+top:0pt;margin-bottom:0pt"><span style=3D"font-size:10pt;font-family:&quot;=
+Work Sans&quot;,sans-serif;color:rgb(0,0,0);background-color:transparent;ve=
+rtical-align:baseline;white-space:pre-wrap">+91 9112 869 779</span></p><p d=
+ir=3D"ltr" style=3D"line-height:0.6;text-align:right;margin-top:10pt;margin=
+-bottom:0pt"><a href=3D"http://www.loophealth.com" target=3D"_blank"><span =
+style=3D"font-size:10pt;font-family:&quot;Work Sans&quot;,sans-serif;color:=
+rgb(54,214,195);background-color:transparent;vertical-align:baseline;white-=
+space:pre-wrap"><span style=3D"border:none;display:inline-block;overflow:hi=
+dden;width:116px;height:12px"><img src=3D"https://lh4.googleusercontent.com=
+/rbJVpH1y1qHxi8MNAnELUe1eaVU0Z3CwaOOl6RHWrpKjt7mg5COtI-f4ut2oowx9Qn7no_a5xj=
+LTmqbkALkmUqQmFDxNdGz2ziS7KgiUQgFByidQlBqrpd5Bay1yq94QtG8Jhn0t" width=3D"11=
+6.00000000000006" height=3D"12" style=3D"margin-top:0px"></span></span></a>=
+</p></td></tr><tr style=3D"height:11.997000000000002pt"></tr><tr style=3D"h=
+eight:21.275738671875pt"><td style=3D"vertical-align:top;padding:5pt 5pt 5p=
+t 5pt;overflow:hidden"><p dir=3D"ltr" style=3D"line-height:0.24;text-align:=
+right;margin-top:0pt;margin-bottom:0pt"><a href=3D"https://www.linkedin.com=
+/company/loop-health/" target=3D"_blank"><span style=3D"font-size:6pt;font-=
+family:&quot;Work Sans&quot;,sans-serif;color:rgb(17,85,204);background-col=
+or:transparent;vertical-align:baseline;white-space:pre-wrap"><span style=3D=
+"border:none;display:inline-block;overflow:hidden;width:24px;height:23px"><=
+img src=3D"https://lh5.googleusercontent.com/U2KL6OctdFhxNUz2L6VF8wlL1ZhtZB=
+qRh3Z9mvvQM5DDbwqGhuqxTSgbGJ8Lpa2RF8DkMxO8B3bUf9W5RjO1ita3tBiQGxq-TGe5KrVxI=
+lN0ySXj35lz7ZD-UmS-0DaRGbu1iyt6" width=3D"13.947561891791867" height=3D"15.=
+104229753767363" style=3D"margin-left:5.026219054104121px;margin-top:3.9478=
+85123116462px"></span></span></a><span style=3D"font-size:6pt;font-family:A=
+rial;color:rgb(0,0,0);background-color:transparent;vertical-align:baseline;=
+white-space:pre-wrap">=C2=A0 </span><a href=3D"https://www.instagram.com/lo=
+ophealthindia/" target=3D"_blank"><span style=3D"font-size:6pt;font-family:=
+&quot;Work Sans&quot;,sans-serif;color:rgb(17,85,204);background-color:tran=
+sparent;vertical-align:baseline;white-space:pre-wrap"><span style=3D"border=
+:none;display:inline-block;overflow:hidden;width:22px;height:22px"><img src=
+=3D"https://lh3.googleusercontent.com/XAb6-ufAxexsY9T74HI8L5RPEcyPKHlIoI-MX=
+73QrgQLtM1LJzYqZYTr3fUN0wVs1uzgUoyHXHm0n4XDDb10T8FPXtj_XrCOQ0EEy6_4ckbzjb35=
+RWiERWWyEJbwiVoJN2XgIMNa" width=3D"15.002476223720482" height=3D"14.9860206=
+85072718" style=3D"margin-left:3.4987618881398532px;margin-top:3.5069896574=
+636537px"></span></span></a><span style=3D"font-size:6pt;font-family:Arial;=
+color:rgb(0,0,0);background-color:transparent;vertical-align:baseline;white=
+-space:pre-wrap">=C2=A0 </span><a href=3D"https://twitter.com/loophealthHQ"=
+ target=3D"_blank"><span style=3D"font-size:6pt;font-family:&quot;Work Sans=
+&quot;,sans-serif;color:rgb(17,85,204);background-color:transparent;vertica=
+l-align:baseline;white-space:pre-wrap"><span style=3D"border:none;display:i=
+nline-block;overflow:hidden;width:22px;height:21px"><img src=3D"https://lh4=
+.googleusercontent.com/FtROE0_CieacD3CwCUYAGEIdUMXXtvrudXRw74yvjX9XYhgHxj48=
+TQjI45_j2ck0oc9wCfK4oLSDwyEMqWKfHuyNM5i7jd5jRekIanUxRyghP3vEk_Li1-dWpTeVpwS=
+cDz66VEV7" width=3D"16.500610859810543" height=3D"13.10412350594146" style=
+=3D"margin-left:2.6831704686157365px;margin-top:3.947938247029311px"></span=
+></span></a><span style=3D"font-size:6pt;font-family:Arial;color:rgb(0,0,0)=
+;background-color:transparent;vertical-align:baseline;white-space:pre-wrap"=
+>=C2=A0 </span><a href=3D"https://www.facebook.com/loophealthindia/" target=
+=3D"_blank"><span style=3D"font-size:6pt;font-family:&quot;Work Sans&quot;,=
+sans-serif;color:rgb(17,85,204);background-color:transparent;vertical-align=
+:baseline;white-space:pre-wrap"><span style=3D"border:none;display:inline-b=
+lock;overflow:hidden;width:22px;height:22px"><img src=3D"https://lh6.google=
+usercontent.com/v9HNSGWCG0gFLLkmEWfK_Wv9egaJj-q43Bko3WKtCwgZ7ZV7VI15k4GMGxC=
+--9pCPI9gYn5_5mkdypXQMoDhXZGqYPWvzoVR4s0UFKnnzfiXiB-Qs_hGlfpkTOCwblPHuvif9G=
+3Y" width=3D"15.167984049013285" height=3D"14.765887142000917" style=3D"mar=
+gin-left:3.4160079754933577px;margin-top:3.617056428999604px"></span></span=
+></a><span style=3D"font-size:6pt;font-family:Arial;color:rgb(0,0,0);backgr=
+ound-color:transparent;vertical-align:baseline;white-space:pre-wrap">=C2=A0=
+ </span><a href=3D"https://www.youtube.com/channel/UCPUc_YWsi_oj5oYjt0yjAZg=
+" target=3D"_blank"><span style=3D"font-size:6pt;font-family:&quot;Work San=
+s&quot;,sans-serif;color:rgb(17,85,204);background-color:transparent;vertic=
+al-align:baseline;white-space:pre-wrap"><span style=3D"border:none;display:=
+inline-block;overflow:hidden;width:24px;height:22px"><img src=3D"https://lh=
+3.googleusercontent.com/MSd3G6C4RBVSq8fWfw1pzA6bFARDx0t6YoA8dXnbUpPr3V2Xwzt=
+Fg3AX2Y0l_VNh98t3EL2HFdeyD3AMreZHt_goH2lD0Kq7ooXBzrn-aonQHWlTNG_-ooCckxukEz=
+PrP3l1qfMz" width=3D"17.313485804573293" height=3D"12.415758963669958" styl=
+e=3D"margin-left:3.117197443082275px;margin-top:5.130544766384262px"></span=
+></span></a></p></td></tr></tbody></table></div></span></div></div></div><b=
+r></div></div><br><div class=3D"gmail_quote"><div dir=3D"ltr" class=3D"gmai=
+l_attr">On Wed, May 10, 2023 at 11:47=E2=80=AFAM Vandana Koul     /RCLG/ICI=
+CILOMBARD/PNE &lt;<a href=3D"mailto:vandana.koul@icicilombard.com">vandana.=
+koul@icicilombard.com</a>&gt; wrote:<br></div><blockquote class=3D"gmail_qu=
+ote" style=3D"margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,20=
+4);padding-left:1ex"><div class=3D"msg-4545333885764474556">
+
+
+
+
+
+<div lang=3D"EN-IN">
+<div class=3D"m_-4545333885764474556WordSection1">
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Arial,sans=
+-serif;color:rgb(31,73,125)">Dear Shriram Ji
+<u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Arial,sans=
+-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Arial,sans=
+-serif;color:rgb(31,73,125)">As discussed on call , Please find the attache=
+d Quotation.
+<u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Arial,sans=
+-serif;color:rgb(31,73,125)">Kindly help to close the same.
+<u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Arial,sans=
+-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<div>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<p class=3D"MsoNormal"><b><span style=3D"font-size:11pt;font-family:Calibri=
+,sans-serif;color:rgb(31,73,125)">Best Regards.</span></b><span style=3D"fo=
+nt-size:11pt;font-family:Calibri,sans-serif;color:rgb(31,73,125)"><u></u><u=
+></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)">Vandana Koul<u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)">Senior Manager<u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)">Email:
+<a href=3D"mailto:Vandana.koul@icicilombard.com" target=3D"_blank">Vandana.=
+koul@icicilombard.com</a><u></u><u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)">Mobile No. 7208929469 / 9607677786<u></u><u>=
+</u></span></p>
+</div>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)">ICICI Lombard, 3<sup>rd</sup> Floor, Plot No=
+.246, Manikchand Ikon, =E2=80=98C=E2=80=99 Wing, Pune - 01</span><span styl=
+e=3D"font-size:11pt;font-family:Calibri,sans-serif;color:rgb(31,73,125)"><u=
+></u><u></u></span></p>
+<div>
+<div style=3D"border-right:none;border-bottom:none;border-left:none;border-=
+top:1pt solid rgb(225,225,225);padding:3pt 0cm 0cm">
+<p class=3D"MsoNormal"><b><span lang=3D"EN-US" style=3D"font-size:11pt;font=
+-family:Calibri,sans-serif">From:</span></b><span lang=3D"EN-US" style=3D"f=
+ont-size:11pt;font-family:Calibri,sans-serif"> Sanjay Yadav /RCLG/ICICILOMB=
+ARD/PNE
+<br>
+<b>Sent:</b> 10 May 2023 10:24<br>
+<b>To:</b> Vandana Koul /RCLG/ICICILOMBARD/PNE &lt;<a href=3D"mailto:vandan=
+a.koul@icicilombard.com" target=3D"_blank">vandana.koul@icicilombard.com</a=
+>&gt;<br>
+<b>Subject:</b> FW: Request for GMC and GPA quoteslip- Ecozen and Ecofrost-=
+ Own Renewal<u></u><u></u></span></p>
+</div>
+</div>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:11pt;font-family:Calibri,sa=
+ns-serif;color:rgb(31,73,125)"><u></u>=C2=A0<u></u></span></p>
+<div>
+<div style=3D"border-right:none;border-bottom:none;border-left:none;border-=
+top:1pt solid rgb(225,225,225);padding:3pt 0cm 0cm">
+<p class=3D"MsoNormal"><b><span lang=3D"EN-US" style=3D"font-size:11pt;font=
+-family:Calibri,sans-serif">From:</span></b><span lang=3D"EN-US" style=3D"f=
+ont-size:11pt;font-family:Calibri,sans-serif"> Anjali Nishu [<a href=3D"mai=
+lto:anjali.nishu@loophealth.com" target=3D"_blank">mailto:anjali.nishu@loop=
+health.com</a>]
+<br>
+<b>Sent:</b> 05 May 2023 14:55<br>
+<b>To:</b> Sanjay Yadav /RCLG/ICICILOMBARD/PNE &lt;<a href=3D"mailto:sanjay=
+.yadav@icicilombard.com" target=3D"_blank">sanjay.yadav@icicilombard.com</a=
+>&gt;<br>
+<b>Cc:</b> Sachin Sadafule &lt;<a href=3D"mailto:sachin.sadafule@loophealth=
+.com" target=3D"_blank">sachin.sadafule@loophealth.com</a>&gt;; Ritika Khar=
+e &lt;<a href=3D"mailto:ritika.khare@loophealth.com" target=3D"_blank">riti=
+ka.khare@loophealth.com</a>&gt;; Debleena Gutta &lt;<a href=3D"mailto:deble=
+ena.gutta@loophealth.com" target=3D"_blank">debleena.gutta@loophealth.com</=
+a>&gt;;
+ Sanket Kulkarni &lt;<a href=3D"mailto:sanket.kulkarni@loophealth.com" targ=
+et=3D"_blank">sanket.kulkarni@loophealth.com</a>&gt;<br>
+<b>Subject:</b> Request for GMC and GPA quoteslip- Ecozen and Ecofrost- Own=
+ Renewal<u></u><u></u></span></p>
+</div>
+</div>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+<p class=3D"MsoNormal" style=3D"margin-bottom:12pt"><span style=3D"font-fam=
+ily:Cambria,serif;color:red">[External Email Warning: Do not click on any a=
+ttachment or links/URL in this email unless sender is reliable]</span><u></=
+u><u></u></p>
+<div>
+<div>
+<p class=3D"MsoNormal">Hi=C2=A0Sanjay <u></u><u></u></p>
+<div>
+<div>
+<div>
+<div>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+</div>
+</div>
+</div>
+<div>
+<div>
+<div>
+<div>
+<div>
+<p class=3D"MsoNormal">PFA GMC and GPA quoteslip of above client.<u></u><u>=
+</u></p>
+</div>
+<div>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+</div>
+<div>
+<p class=3D"MsoNormal">Request you to share the quotes at=C2=A0the earliest=
+<br clear=3D"all">
+<u></u><u></u></p>
+<div>
+<div>
+<p class=3D"MsoNormal">-- <u></u><u></u></p>
+<table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"border-col=
+lapse:collapse">
+<tbody>
+<tr style=3D"height:27.3pt">
+<td colspan=3D"2" valign=3D"top" style=3D"padding:5pt;height:27.3pt;overflo=
+w:hidden">
+<p style=3D"margin:0cm 0cm 0.0001pt"><span style=3D"font-size:14pt;font-fam=
+ily:Arial,sans-serif;color:black">Anjali Nishu</span><u></u><u></u></p>
+</td>
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:27.3pt"></td>
+</tr>
+<tr style=3D"height:12.4pt">
+<td colspan=3D"2" valign=3D"top" style=3D"padding:5pt;height:12.4pt;overflo=
+w:hidden">
+<p style=3D"margin:0cm 0cm 0.0001pt;line-height:0%"><span style=3D"font-siz=
+e:10pt;font-family:Arial,sans-serif;color:rgb(89,89,89)">Assistant Manager-=
+Placement</span><u></u><u></u></p>
+</td>
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:12.4pt"></td>
+</tr>
+<tr style=3D"height:11.35pt">
+<td colspan=3D"2" valign=3D"top" style=3D"padding:5pt;height:11.35pt;overfl=
+ow:hidden">
+<div class=3D"MsoNormal" align=3D"center" style=3D"text-align:center">
+<hr size=3D"3" width=3D"100%" align=3D"center">
+</div>
+</td>
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:11.35pt"></td>
+</tr>
+<tr style=3D"height:21pt">
+<td rowspan=3D"3" valign=3D"top" style=3D"padding:5pt;height:21pt;overflow:=
+hidden">
+<p style=3D"margin-right:0cm;margin-bottom:10pt;margin-left:0cm;line-height=
+:0%">
+<a href=3D"https://www.loophealth.com/" target=3D"_blank"><span style=3D"fo=
+nt-size:11pt;font-family:Arial,sans-serif;color:rgb(17,85,204);border:1pt n=
+one windowtext;padding:0cm;text-decoration:none"><img border=3D"0" width=3D=
+"86" height=3D"40" id=3D"m_-4545333885764474556_x0000_i1026" src=3D"https:/=
+/lh3.googleusercontent.com/l4ij0k4rPaFgOj2K4xQvJLfeCumByprEFEI4duaJzBTA63G9=
+ip8AIVZNl-WDJ4N8h_0H2DuzLyLZxhsm-6rmk31nh8k2-BlagAhWxGaDXsfcKOlCpmFJKarW9Lg=
+uwV-CLcwmGc0a"></span></a><u></u><u></u></p>
+<p style=3D"margin:0cm 0cm 0.0001pt"><span style=3D"font-size:7pt;font-fami=
+ly:Arial,sans-serif;color:rgb(89,89,89)">2nd Floor, Vikram Nandadeep, Patra=
+kar Nagar Road, Pune - 411 016</span><u></u><u></u></p>
+</td>
+<td rowspan=3D"2" valign=3D"top" style=3D"padding:5pt;height:21pt;overflow:=
+hidden">
+<p align=3D"right" style=3D"margin:0cm 0cm 0.0001pt;text-align:right;line-h=
+eight:0%">
+<span style=3D"font-size:10pt;font-family:Arial,sans-serif;color:black">+91=
+7020836197</span><u></u><u></u></p>
+<p align=3D"right" style=3D"margin-right:0cm;margin-left:0cm;margin-bottom:=
+0.0001pt;text-align:right;line-height:0%">
+<a href=3D"http://www.loophealth.com/" target=3D"_blank"><span style=3D"fon=
+t-size:10pt;font-family:Arial,sans-serif;color:rgb(54,214,195);border:1pt n=
+one windowtext;padding:0cm;text-decoration:none"><img border=3D"0" width=3D=
+"116" height=3D"12" id=3D"m_-4545333885764474556_x0000_i1027" src=3D"https:=
+//lh6.googleusercontent.com/0aXRd4XqNHY4Kc8yTAkd1VBsn5RpHT5dDgH3j8NrrOws1lX=
+tSQWTiIOC_pgjAHpNDWxBGmIJWpuKYRkCmKGu9y9YcVsu9lVdVRprp5sVUSKTrsuI7sciUeedqk=
+-EK2UqgKFDtoqN"></span></a><u></u><u></u></p>
+</td>
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:21pt"></td>
+</tr>
+<tr style=3D"height:12pt">
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:12pt"></td>
+</tr>
+<tr style=3D"height:21.3pt">
+<td valign=3D"top" style=3D"padding:5pt;height:21.3pt;overflow:hidden">
+<p align=3D"right" style=3D"margin:0cm 0cm 0.0001pt;text-align:right;line-h=
+eight:0%">
+<a href=3D"https://www.linkedin.com/company/loop-health/" target=3D"_blank"=
+><span style=3D"font-size:6pt;font-family:Arial,sans-serif;color:rgb(17,85,=
+204);border:1pt none windowtext;padding:0cm;text-decoration:none"><img bord=
+er=3D"0" width=3D"13" height=3D"15" id=3D"m_-4545333885764474556_x0000_i102=
+8" src=3D"https://lh4.googleusercontent.com/HhfSJhw7uL-vgPZuuSg8oLGBNQQ6UES=
+LfPXY7yueUc_m7HQJEKL40PIiJjatDSnB26jCLQeSLN-Yevwscyq2JHsOcbBRA91YP_G-bzo6X1=
+LxyAUiW1VXn4DFw9fkp0DlMg78P7C9"></span></a><span style=3D"font-size:6pt;fon=
+t-family:Arial,sans-serif;color:black">=C2=A0
+</span><a href=3D"https://www.instagram.com/loophealthindia/" target=3D"_bl=
+ank"><span style=3D"font-size:6pt;font-family:Arial,sans-serif;color:rgb(17=
+,85,204);border:1pt none windowtext;padding:0cm;text-decoration:none"><img =
+border=3D"0" width=3D"15" height=3D"14" id=3D"m_-4545333885764474556_x0000_=
+i1029" src=3D"https://lh5.googleusercontent.com/WekDLnV8bX_tKHqP42FOdAr9yOO=
+3dZLzdbIR_P7mgj3G96B97pW3JqqinQ0GCx8k-GK57megCUessmW1wdu18S_kSCuL5esg-ggP2Z=
+WKkXdyTq1XhTE6ewLJpdU7UQI018EWhsHN"></span></a><span style=3D"font-size:6pt=
+;font-family:Arial,sans-serif;color:black">=C2=A0
+</span><a href=3D"https://twitter.com/loophealthHQ" target=3D"_blank"><span=
+ style=3D"font-size:6pt;font-family:Arial,sans-serif;color:rgb(17,85,204);b=
+order:1pt none windowtext;padding:0cm;text-decoration:none"><img border=3D"=
+0" width=3D"16" height=3D"13" id=3D"m_-4545333885764474556_x0000_i1030" src=
+=3D"https://lh4.googleusercontent.com/DWvFQ9CjaBCLRQ8nShRfnIYu3Bjp0uUfbBeFF=
+ILALTjksv2C-vCrklDO-57DqKkIDIPpfp_69nFtrp1pWRwY7cksESx6pDA5CL3LF3m5Yz_8c0aV=
+L2VL_Rr_UKaBJoGczl7mgrL9"></span></a><span style=3D"font-size:6pt;font-fami=
+ly:Arial,sans-serif;color:black">=C2=A0
+</span><a href=3D"https://www.facebook.com/loophealthindia/" target=3D"_bla=
+nk"><span style=3D"font-size:6pt;font-family:Arial,sans-serif;color:rgb(17,=
+85,204);border:1pt none windowtext;padding:0cm;text-decoration:none"><img b=
+order=3D"0" width=3D"15" height=3D"14" id=3D"m_-4545333885764474556_x0000_i=
+1031" src=3D"https://lh6.googleusercontent.com/FBrCNFCdzAQZ1PWxC18MHvkWpQ8P=
+nU1pAglx4RF4ghMMa4WF44iZnilsoZl4KhAshFawgvz-Co5U4N-6Ed79XRgYhrTbRIvsP4Nu7J7=
+GBiZ_uj7cH3WqkLgK2RwcjVKtTAp1ZMIt"></span></a><span style=3D"font-size:6pt;=
+font-family:Arial,sans-serif;color:black">=C2=A0
+</span><a href=3D"https://www.youtube.com/channel/UCPUc_YWsi_oj5oYjt0yjAZg"=
+ target=3D"_blank"><span style=3D"font-size:6pt;font-family:Arial,sans-seri=
+f;color:rgb(17,85,204);border:1pt none windowtext;padding:0cm;text-decorati=
+on:none"><img border=3D"0" width=3D"17" height=3D"12" id=3D"m_-454533388576=
+4474556_x0000_i1032" src=3D"https://lh6.googleusercontent.com/uMMy20OKooPif=
+tLfPYDm3eAVUMAgfY5LLgSl9HlCN0OFR97tziqWg-R-HbxT9ygyZWwFOYvqqzkvM3Ibb-zotZSt=
+rAqVNKl6_YNRi_Kzteiq-HKrf2tzRv3YOUABd6jLGeQKTDOr"></span></a><u></u><u></u>=
+</p>
+</td>
+<td width=3D"0" style=3D"width:0.3pt;padding:0cm;height:21.3pt"></td>
+</tr>
+</tbody>
+</table>
+<p class=3D"MsoNormal"><u></u>=C2=A0<u></u></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+=E2=80=9CPlease note that this email and message, including any attachments=
+, is intended solely for the individual (s) or entity (ies) to whom it is a=
+ddressed and may contain information that is private, confidential and priv=
+ileged. In case you are not the intended
+ recipient, request you to notify the sender by reply mail and delete this =
+email, including any copies or attachments from your system. Any unauthoriz=
+ed dissemination, disclosure, copy and/or use of the contents of this commu=
+nication, including the attachment,
+ to anyone is strictly prohibited and punishable by law.<br>
+=C2=A0<br>
+Opinions, conclusions and statements of intent expressed in this e-mail are=
+ of the sender and ICICI Lombard General Insurance Company Limited (Company=
+) does not accept liability for the views expressed in this email unless co=
+nfirmed by an authorized representative
+ of the Company independently of this communication. E-mail transmission ca=
+nnot be guaranteed to be secure or error-free as information could be inter=
+cepted, corrupted, lost, destroyed, incomplete or contain viruses and the C=
+ompany accepts no liability for
+ any damage caused by the limitations of the e-mail transmission.=E2=80=9D
+</div>
+
+</div></blockquote></div>
+
+--0000000000006ce0bf05fbbe02b5--

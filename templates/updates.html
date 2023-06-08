@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "navbar.html" %}
+<div class="bg-light mx-auto w-full h-full flex bg-light flex-col justify-center max-w-50 px-3 pt-1 mb-8 round-1">
+    <h1 class="mb-0">Release Notes</h1>
+    <h2 class="m0 text-light">The latest updates for Upstream AI</h4>
+        <div> Written by Pablo Felgueres </div>
+    </h2>
+    <!-- 4th release -->
+    <h3 class="mb-0 mt-1">Launching User-Trained Chatbots (Mar 8th 2023)</h3>
+    <p class="mb-0">Upstream now lets you train AI chatbots with your content. 
+        Chatbots are a powerful way to build specialized AI assistants. 
+        This means you can combine multiple data sources and train an AI to answer questions specific to those sources.
+    </p>
+    <p>
+        This unlocks a new set of use cases for our customers. Here's a few examples:
+    </p>
+    <ol>
+        <li> <b>Chatbot to answer customer questions.</b>
+            Businesses of any size are able to train a chatbot on their company's website to add a new way for their customer's to know about their products and services.
+        </li>
+        <li> <b>Chatbot for R&D.</b>
+            Teams are able to gather many research documents and papers into a chatbot to discuss new approaches and ideas.
+        </li>
+        <li> <b>Chatbot for technical translation.</b>
+            Teams are able to train a chatbot on their technical documentation to help non-technical people understand their products. 
+        </li>
+        <li> <b>Chatbot for hobbyists.</b>
+            Hobbyists are able to train a chatbot on their hobby to help others learn about it.
+        </li>
+    </ol>
+    <p>
+        I'm super excited to see what you build with Upstream AI.
+    </p>
+    <!-- End of latest update -->
+    <h3 class="mb-0 mt-1">Upgrading to ChatGPT (Feb 29th 2023)</h3>
+    <p class="mb-0">Yesterday <a class="link" target="_blank" href="https://openai.com/blog/introducing-chatgpt-and-whisper-apis">OpenAI
+            released </a>the model used in ChatGPT. This is the most advanced AI model out there and I've made the
+        changes for Upstream to use it.
+    Across the board it's a step change improvement, here's what it means for you:</p>
+    <ol>
+        <li> <b>Faster response times.</b>This model is 5-10X faster than the previous model which translates to
+            noticeably lower waiting times to get answers.</li>
+        <li> <b>Better quality answers.</b>This model is highly fine-tuned, producing much better quality answers.</li>
+        <li> <b>More relevant answers from your data.</b>From user feedback, I've increased the response length and made
+            changes to the PDF retrieval process to improve your results.</li>
+    </ol>
+    <p class="m0"> These are exciting times in AI -- with the world's best models publicly available, smaller teams like
+        Upstream can focus on building deep, high value integrations for our customers. </p>
+    <!-- Third release -->
+    <h3 class="mb-0 mt-1">Upstream with external data sources (Feb 28th 2023)</h3>
+    <p class="">Upstream now lets you upload PDFs. This means you can get answers and back-and-forth dialogue
+        using your PDF files as context.
+        AI is a powerful to the extent that it helps you accomplish a task -- my goal with this integration is to get
+        you <b>factual answers, from your data sources, in no time.</b></p>
+    <p class="m0">It's super easy, this is how it works:</p>
+    <ol>
+        <li> Upload a PDF. </li>
+        <li> Select the file by pressing the '/' key. </li>
+        <li> Start a dialogue.</li>
+    </ol>
+    <p class="m0">Under the hood, it's a two step process where your PDF and dialogue is converted into a vector
+        space representation. Then Upstream does semantic search to the most relevant passages in the PDF and formulates
+        an answer
+        with GPT.</p>
+    <!-- Second Release-->
+    <h3 class="mb-0 mt-1">Upstream Web Release (Feb 19th 2023)</h3>
+    <p class="m0">We are excited to annouce Upstream AI for the Web! Here's what's new:</p>
+    <ol>
+        <li>
+            <b>Your private link.</b> Users are now able to use Upstream on the web using their private link.
+        </li>
+        <li>
+            <b>Web and Chrome in Sync.</b>The Web and Chrome Extension are in sync to seamlessly switch
+            and resume conversations.
+        </li>
+    </ol>
+    <!-- First release note -->
+    <h3 class="mb-0 mt-1">Release Notes V0.3.0 (Feb 14th 2023)</h3>
+    <p class="m0">We are excited to annouce our biggest release yet, the Upstream AI Chatbot! Here's what's new:</p>
+    <ol>
+        <li>
+            <b>Chat.</b> Users are now able to ask questions and refine with back-and-forth conversation.
+        </li>
+        <li>
+            <b>Conversation history.</b> Users are now able to read and resume past conversations.
+        </li>
+        <li>
+            <b>Content-aware Q&A.</b> Users are now able to select Chrome tabs as context for conversation.
+        </li>
+        <li>
+            <b>Free & unlimited plans</b> Based on user feedback, we are moving to a subscription model with
+            unlimited
+            conversations and a free plan with weekly message limits.
+        </li>
+        <li>
+            <b>Other improvements.</b> Eg. remembers your secret key, auto scrolling, and more.
+        </li>
+    </ol>
+</div>
+
+{% endblock %}
