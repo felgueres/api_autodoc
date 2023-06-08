@@ -10,3 +10,4 @@ chromedriver_linux64/
 webdriver/
 google-chrome-stable_current_amd64.deb
 /audio/
+/data
