@@ -13,3 +13,4 @@ google-chrome-stable_current_amd64.deb
 /data
 /temp
 *.mp4
+/static
