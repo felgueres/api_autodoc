@@ -86,7 +86,7 @@ class Chat(UpstreamObject):
         # Join all messages into one string including role and content
         MESSAGE_TEMPLATE = "{{search_results}} {{user_message}}"
         # SEARCH_RESULTS = """{% if context | length -%} Given the following extracted parts of a long document and a question, create a final answer. If you don't know the answer, just say that you don't know. Don't try to make up an answer.\n\nContent: {{context}}\n\n Question: {%endif%}"""
-        SEARCH_RESULTS_EXTRACT = """{% if context | length -%} Given the following text of a document, extract the values for the given set of keys. \n\nKeys: {{context}}\n\n {%endif%}"""
+        SEARCH_RESULTS_EXTRACT = """{% if context | length -%} Given the following text of a document, your goal is to extract the value that corresponds to a given key.\nDocument text:\n{{context}}\n{%endif%}"""
         USER_MESSAGE = """{{user_message}} \n Helpful answer:"""
         str_messages = '\n'.join([f"{m['role']}: {m['content']}" for m in self.messages])
         base_tokens = InferenceUtils.num_tokens_from_string(str_messages)

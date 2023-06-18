@@ -88,6 +88,19 @@ CREATE TABLE IF NOT EXISTS bots (
     );
 '''
 
+
+sql_create_templates_table = '''
+CREATE TABLE IF NOT EXISTS templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fields TEXT NOT NULL DEFAULT '{}');
+'''
+
+
 # Use this as an axample schema
 sql_create_temp_links_table = '''
 CREATE TABLE IF NOT EXISTS temp_links (
@@ -155,3 +168,4 @@ def create_store():
     create_table(sql_create_temp_links_table)
     create_table(sql_create_blob_table)
     create_table(sql_create_reactions_table)
+    create_table(sql_create_templates_table)

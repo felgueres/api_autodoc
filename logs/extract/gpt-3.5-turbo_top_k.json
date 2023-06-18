@@ -1,0 +1,30 @@
+[
+    {
+        "idx": 0,
+        "ys": [
+            "{\"address\": \"173/2, BANDAPURA VILLAGE ROAD, BEHIND AVS CONCRETE OFF HOSUR ROAD, ANEKAL TALUKA, BENGALURU, BANGALORE KARNATAKA-562106\"}"
+        ],
+        "infos": [
+            {
+                "rs": [
+                    10
+                ],
+                "r": 10.0
+            }
+        ]
+    },
+    {
+        "idx": 1,
+        "ys": [
+            "{\"Russian Author\": \"Fyodor Dostoevsky\"}"
+        ],
+        "infos": [
+            {
+                "rs": [
+                    1
+                ],
+                "r": 1.0
+            }
+        ]
+    }
+]

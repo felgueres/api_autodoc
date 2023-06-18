@@ -7,14 +7,14 @@ from db_utils import create_store, write_to_db, read_from_db, write_many_to_db
 from constants import MAX_FILE_SIZE, EMPTY_STRING, USERS_WITH_GPT4, DTYPE_URL, DTYPE_VIDEO, MIMETYPES, PLANS
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To, Bcc
-from utils import fill_html, generate_uuid, flatten_json, validate_format, get_few_shot_loop_json
+from utils import fill_html, generate_uuid, validate_format, get_few_shot_loop_json
 from upstream_object import DataLoader
 import os
 from send_email import send_upload_email
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from filequeue import FileQueue
-from embeddings import read_embeddings_from_db, get_q_embeddings, create_context, fetch_passages
+from embeddings import read_embeddings_from_db, get_q_embeddings, create_context, fetch_passages, compute_distances
 from chatapi import MODEL_MAP
 import json
 from web import preflight_url_validation_headless
@@ -315,6 +315,103 @@ def bots(user_id, bot_id):
 
     return jsonify({'bots': list(out_bots.values())})
 
+class BadRequestError(Exception):
+    pass
+
+@app.route('/v1/template/new', methods=['POST'])
+@jwt_auth
+def new_template(user_id):
+    data = request.json
+    template_id = 't_'+generate_uuid(8)
+    try:
+        fields = data['fields']
+        name = data['name']
+        description = data['description']
+        fields = json.dumps(fields)
+    except Exception:
+        return '', 400 
+    try:
+        template_new_sql = f"""INSERT INTO templates (template_id, user_id, name, description, fields) VALUES (?, ?, ?, ?, ?)"""
+        write_to_db(template_new_sql, [template_id, user_id, name, description, fields])
+    except Exception:
+        return '', 500
+    return jsonify({'template_id': template_id}), 200 
+
+@app.route('/v1/templates/<template_id>', methods=['PATCH'])
+@jwt_auth
+def update_template(user_id, template_id):
+    data = request.json
+    try:
+        fields = data['fields']
+        name = data['name']
+        description = data['description']
+        fields = json.dumps(fields)
+    except Exception:
+        return '', 400 
+
+    try:
+        print(template_id, user_id, name, description, fields)
+        template_update_sql = f"""UPDATE templates SET name = ?, description = ?, fields = ? WHERE template_id = ? and user_id = ?"""
+        write_to_db(template_update_sql, [name, description, fields, template_id, user_id])
+        return jsonify({'template_id': template_id}), 200
+
+    except Exception:
+        return '', 500
+
+
+@app.route('/v1/templates/<template_id>', methods=['DELETE'])
+@jwt_auth
+def delete_template(user_id, template_id):
+    bot_delete_sql = f"""DELETE FROM templates WHERE template_id = ? and user_id = ?"""
+    try:
+        write_to_db(bot_delete_sql, [template_id, user_id])
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        logger.error(e)
+        return jsonify({'success': False}), 200
+
+
+@app.route('/v1/templates/<template_id>', methods=['GET'])
+@app.route('/v1/templates', defaults={'template_id': None}, methods=['GET'])
+@jwt_auth
+def get_templates(user_id, template_id):
+    if template_id:
+        template_sql = f"""
+            SELECT 
+                t.template_id, 
+                t.name,
+                t.description,
+                t.fields,
+                t.created_at
+            FROM templates t 
+            WHERE t.user_id = ? AND t.template_id = ?
+            ORDER BY t.created_at DESC
+            """
+    else:
+        template_sql = f"""
+            SELECT 
+                t.template_id, 
+                t.name,
+                t.description,
+                t.fields,
+                t.created_at
+            FROM templates t 
+            WHERE t.user_id = ?
+            ORDER BY t.created_at DESC
+            """
+    try:
+        bindings = [user_id, template_id] if template_id else [user_id]
+        templates = read_from_db(template_sql, bindings)
+        if not templates:
+            return jsonify({'templates': []}), 200
+        else:
+            for template in templates:
+                template['fields'] = json.loads(template['fields'])
+            return jsonify({'templates': templates}), 200
+
+    except Exception as e:
+        print(e)
+        return '', 500
 
 @app.route('/v1/bot/new', methods=['POST'])
 @jwt_auth
@@ -440,94 +537,93 @@ def update_bot(user_id, bot_id):
 class InferenceError(Exception):
     pass
 
+class FatalError(Exception):
+    pass
 
-# @app.route('/v1/search', methods=['POST'])
-# @jwt_auth
-# def search(user_id):
-#     import json
-#     from embeddings import compute_distances, read_embeddings_from_db
-#     data = request.json
-#     sources_ids = [s['source_id'] for s in data['sources']] if data['sources'] else []
-#     data['messages'] = []
-#     try:
-#         d_embeddings_df = read_embeddings_from_db(sources_ids)
-#         q_embeddings = get_q_embeddings(q=data['query'])
-#         d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
-#         sources = fetch_passages(d_embeddings_df, max_passages=5)
-#         if not sources:
-#             return jsonify({'summary': 'Couldn\'t find relevant information.', 
-#                             'facts': {}, 
-#                             'reference': {'id': '', 'title': '', 'text': '', 'score': '', 'n_tokens': ''}}), 200
-
-#         data['context'] = '###'.join([s['text'] for s in sources])
-
-#         data['context'] = data['context'] + '\n' + \
-#             '\n Example response \n' + get_few_shot_loop_json() + \
-#             '\n Make sure the response can be parsed by Python json.loads and only fill in the same key value pairs, if not present, show the key and leave the value empty.'
-
-#         chat_inputs = DataLoader.construct_chat(data, api_key='')
-#         chat_inputs.add_user_message(data["query"])
-#         messages = chat_inputs.get_messages('facts')
-#         response, success = chat_completion( model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=1)
-#         if not success: raise InferenceError()
-
-#         message = response.get('choices', [{}])[0].message
-#         content = message['content'].strip()
-
-#         data = json.loads(content)
-
-#         print('\n\n\nRESPONSE:', json.dumps(data, indent=4), '\n\n\n')
-
-#         if validate_format(content):
-#             d = json.loads(content)
-#             out = {'summary': '', 'facts': flatten_json(d['facts']), 'reference': sources[0]}
-#             return jsonify(out), 200
-
-#         else:
-#             logger.error('\n\n\n\n INVALID FORMAT \n\n\n\n\n')
-#             return jsonify({'summary': 'Couldn\'t find relevant information. Try again.', 'facts': {}, 'reference': {'id': '', 'title': '', 'text': '', 'score': '', 'n_tokens': ''}}), 200
-
-#     except Exception as e:
-#         logger.error(f'\n\n\n\n EXCEPTION: {e} \n\n\n\n\n')
-#         return jsonify({'summary': 'Couldn\'t find relevant information. Please try again.', 'facts': {}, 'reference': {'id': '', 'title': '', 'text': '', 'score': '', 'n_tokens': ''}}), 200
+class RetriableError(Exception):
+    pass
 
 @app.route('/v1/search', methods=['POST'])
 @jwt_auth
 def search(user_id):
     import json
     from embeddings import read_embeddings_from_db
-
     data = request.json
     sources_ids = [s['source_id'] for s in data['sources']] if data['sources'] else []
-    data['messages'] = []
 
-    try: 
-        d_embeddings_df = read_embeddings_from_db(sources_ids)        
-        sources = fetch_passages(d_embeddings_df, max_passages=1000, sort_by='id', ascending=True)
+    method = 'retrieve' 
 
-    except Exception as e:
-        print('Error fetching passages', e)
-        return jsonify(''), 500
+    if method == 'rolling_window':
+        try: 
+            d_embeddings_df = read_embeddings_from_db(sources_ids)        
+            sources = fetch_passages(d_embeddings_df, max_passages=1000, sort_by='id', ascending=True)
+        except Exception as e:
+            return jsonify(''), 500
+        choices = []
+        for s in sources:
+            data['messages'] = []
+            for category in ['all']:
+                data['context'] = get_few_shot_loop_json(category) + \
+                    'Text:\n\n' + s['text'] + \
+                        '\n Please follow these instructions with extreme care: \n\
+                        Make sure the response can be parsed by Python json.loads \n\
+                        Fill in exactly the same keys as shown below, do not add or remove keys.\n\
+                        If the information is not present, show the key and leave the value empty.\n\
+                        Only respond with the JSON, no commentary.\n'
+                chat_inputs = DataLoader.construct_chat(data, api_key='')
+                chat_inputs.add_user_message(data["query"])
+                messages = chat_inputs.get_messages('facts')
+                try:
+                    response, success = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.5)
+                    if not success: raise InferenceError()
+                except Exception as e:
+                    logger.error(f'\n\n\n\n EXCEPTION: {e} \n\n\n\n\n')
 
-    choices = []
+                message = response.get('choices', [{}])[0].message
+                content = message['content'].strip()
 
-    for s in sources:
-        for category in ['emptyfacts']:
-            data['context'] = get_few_shot_loop_json(category) + \
-                'Text:\n\n' + s['text'] + \
-                    '\n Please follow these instructions with extreme care: \n\
-                    Make sure the response can be parsed by Python json.loads \n\
-                    Fill in exactly the same keys as shown below, do not add or remove keys.\n\
-                    If the information is not present, show the key and leave the value empty.\n\
-                    Only respond with the JSON, no commentary.\n'
+                try: 
+                    if validate_format(content):
+                        d_out = json.loads(content)
+                        choices.append(d_out)
+                    else:
+                        print('\n\n\n\n INVALID FORMAT \n\n\n\n\n', content)
+                except Exception as e:
+                    print('Error validating format', e)
+        from extract import consolidate_choices 
+        d_out = consolidate_choices(choices) 
+        return jsonify({'facts': d_out}), 200
+
+    if method == 'retrieve':
+        try: 
+            d_embeddings_df = read_embeddings_from_db(sources_ids)
+        except Exception as e:
+            return jsonify(''), 500
+        choices = []
+        target_json = get_few_shot_loop_json('all', out_format='dict')
+        for k,_ in target_json.items():
+            data['messages'] = []
+            # Make query with q 
+            q_embeddings = get_q_embeddings(q=f'What is the {k}?')
+            d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
+            sources = fetch_passages(d_embeddings_df, max_passages=4, sort_by='distance', ascending=False)
+            data['context'] = '###'.join([s['text'] for s in sources])
+            data['context'] = data['context'] + \
+                    '\nKey to extract value for:\n\
+                    "{k}"\n\
+                    Follow the following instructions with extreme care: \n\
+                    Output a valid JSON \n\ {{"{k}": "<extracted_value>"}}\n\
+                        Make sure the response can be parsed by Python json.loads \n\
+                            Make sure the answer is a single string, not a list or dict.\n\
+                                Fill in exactly the same key, do not add or remove keys.\n \
+                                    If the information is not present, show the key and leave the value empty.\n\
+                                        Only respond with the JSON, no commentary.\n'.format(k=k)
             chat_inputs = DataLoader.construct_chat(data, api_key='')
             chat_inputs.add_user_message(data["query"])
             messages = chat_inputs.get_messages('facts')
-        
             try: 
-                response, success = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.5)
-                if not success: 
-                    raise InferenceError()
+                response, success = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.2)
+                if not success: raise InferenceError()
             except Exception as e:
                 logger.error(f'\n\n\n\n EXCEPTION: {e} \n\n\n\n\n')
 
@@ -537,25 +633,14 @@ def search(user_id):
             try: 
                 if validate_format(content):
                     d_out = json.loads(content)
-                    # d_out = flatten_json(d)
                     choices.append(d_out)
                 else:
                     print('\n\n\n\n INVALID FORMAT \n\n\n\n\n', content)
             except Exception as e:
                 print('Error validating format', e)
-                pass
-
-    # For all key-value pairs, consolidate the values into a list
-    d_out = {}
-    for d in choices:
-        for k, v in d.items():
-            k = k.lower()   
-            if k not in d_out:
-                d_out[k] = []
-            d_out[k].append(v)
-    # d_out = <key: [value1, value2, ...], ...>
-
-    return jsonify({'facts': d_out}), 200
+        from extract import consolidate_choices 
+        d_out = consolidate_choices(choices) 
+        return jsonify({'facts': d_out}), 200
 
 @app.route('/v1/inference', methods=['POST'])
 @jwt_auth
@@ -566,6 +651,7 @@ def stream_v1(user_id):
     else:
         if not check_plan(user_id, check='messages'):
             return jsonify({'error': 'You have reached your plan limit. Upgrade your plan to continue.'}), 402
+
     data = request.json
     data['conversation_id'] = data['conversation_id'] if data['conversation_id'] else generate_uuid()
     sources_ids = [s['source_id'] for s in data["sources"]] if data["sources"] else []

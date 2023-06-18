@@ -117,14 +117,13 @@ def jwt_auth(f):
         try:
             decoded = decode(token, SUPABASE_SECRET, algorithms=["HS256"], audience=["authenticated"])
             user_id = decoded['sub']
-            # if function is check_registration, add email to it
-            if f.__name__ == 'check_registration':
-                email = decoded['email']
-                return f(*args, **kwargs, user_id=user_id, email=email)
-            else:
-                return f(*args, **kwargs, user_id=user_id)
-
         except Exception:
-            raise AuthError({"code": "invalid_key","description":"Get your keys from upstreamapi.com"}, 401)  
+            raise AuthError({"code": "invalid_key","description":"Get your keys from upstreamapi.com"}, 401)
+
+        if f.__name__ == 'check_registration':
+            email = decoded['email']
+            return f(*args, **kwargs, user_id=user_id, email=email)
+        else:
+            return f(*args, **kwargs, user_id=user_id)
         
     return wrap

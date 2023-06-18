@@ -65,8 +65,13 @@ def flatten_json(d, parent_key='', sep='_'):
             items.append((new_key, v))
     return dict(items)
 
-def get_few_shot_loop_json(section='facts'):
+def get_few_shot_loop_json(section='facts', out_format='string'):
     '''returns the few shot loop json file as a dict
     '''
     with open("data/few_shot_loop.json", "r") as f:
-        return json.dumps(json.load(f)[section])
+        if out_format == 'dict':
+            return json.load(f)[section]
+        elif out_format == 'string':
+            return json.dumps(json.load(f)[section], indent=4)
+        else:
+            raise ValueError(f'out_format must be string or dict, got {out_format}')
