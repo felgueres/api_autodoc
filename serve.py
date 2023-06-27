@@ -7,7 +7,7 @@ from db_utils import create_store, write_to_db, read_from_db, write_many_to_db
 from constants import MAX_FILE_SIZE, EMPTY_STRING, USERS_WITH_GPT4, DTYPE_URL, DTYPE_VIDEO, MIMETYPES, PLANS
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To, Bcc
-from utils import fill_html, generate_uuid, validate_format, get_few_shot_loop_json
+from utils import fill_html, generate_uuid
 from upstream_object import DataLoader
 import os
 from send_email import send_upload_email
@@ -19,6 +19,9 @@ from chatapi import MODEL_MAP
 import json
 from web import preflight_url_validation_headless
 from video import process_youtube_video
+import yaml
+from gpt import gpt
+import concurrent
 
 logger = setup_logger(__name__)
 load_dotenv()
@@ -358,7 +361,6 @@ def update_template(user_id, template_id):
     except Exception:
         return '', 500
 
-
 @app.route('/v1/templates/<template_id>', methods=['DELETE'])
 @jwt_auth
 def delete_template(user_id, template_id):
@@ -369,7 +371,6 @@ def delete_template(user_id, template_id):
     except Exception as e:
         logger.error(e)
         return jsonify({'success': False}), 200
-
 
 @app.route('/v1/templates/<template_id>', methods=['GET'])
 @app.route('/v1/templates', defaults={'template_id': None}, methods=['GET'])
@@ -431,7 +432,7 @@ def new_bot(user_id):
     else:
         metadata = '{}'
 
-    bot_id = 'bot_'+generate_uuid(8)
+    bot_id = 'doc_'+generate_uuid(8)
 
     entries = [(bot_id, user_id, bot_name, bot_description,
                 source_id, model_id, system_message, temperature, metadata, visibility) for source_id in sources] if sources else [(bot_id, user_id, bot_name, bot_description, EMPTY_STRING, model_id, system_message, temperature, metadata, visibility)]
@@ -534,113 +535,83 @@ def update_bot(user_id, bot_id):
         response = jsonify({'error': 'error'}), 500
         return response
 
-class InferenceError(Exception):
-    pass
-
-class FatalError(Exception):
-    pass
-
-class RetriableError(Exception):
-    pass
+def get_template(template_id):
+    get_template_sql = f"""SELECT fields FROM templates WHERE template_id = ?"""
+    template = read_from_db(get_template_sql, [template_id])[0]
+    fields = json.loads(template['fields'])
+    return fields
 
 @app.route('/v1/search', methods=['POST'])
 @jwt_auth
-def search(user_id):
+def extract(user_id):
     import json
     from embeddings import read_embeddings_from_db
+    from concurrent.futures import ThreadPoolExecutor
+
     data = request.json
-    sources_ids = [s['source_id'] for s in data['sources']] if data['sources'] else []
+    fields = get_template(data['template_id'])
+    d_embeddings_df = read_embeddings_from_db([data['sources'][0]['source_id']])
+    print(d_embeddings_df.shape)
 
-    method = 'retrieve' 
+    configs = yaml.safe_load(open('./prompts.yaml','r'))
+    prompt = configs['general_form']['prompt']
 
-    if method == 'rolling_window':
-        try: 
-            d_embeddings_df = read_embeddings_from_db(sources_ids)        
-            sources = fetch_passages(d_embeddings_df, max_passages=1000, sort_by='id', ascending=True)
-        except Exception as e:
-            return jsonify(''), 500
-        choices = []
-        for s in sources:
-            data['messages'] = []
-            for category in ['all']:
-                data['context'] = get_few_shot_loop_json(category) + \
-                    'Text:\n\n' + s['text'] + \
-                        '\n Please follow these instructions with extreme care: \n\
-                        Make sure the response can be parsed by Python json.loads \n\
-                        Fill in exactly the same keys as shown below, do not add or remove keys.\n\
-                        If the information is not present, show the key and leave the value empty.\n\
-                        Only respond with the JSON, no commentary.\n'
-                chat_inputs = DataLoader.construct_chat(data, api_key='')
-                chat_inputs.add_user_message(data["query"])
-                messages = chat_inputs.get_messages('facts')
-                try:
-                    response, success = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.5)
-                    if not success: raise InferenceError()
-                except Exception as e:
-                    logger.error(f'\n\n\n\n EXCEPTION: {e} \n\n\n\n\n')
+    d_out = {}
 
-                message = response.get('choices', [{}])[0].message
-                content = message['content'].strip()
+    def extract_field(field, d_embeddings_df, prompt):
+        k = field['name']
+        q_embeddings = get_q_embeddings(q=f'What is the {k}?')
+        d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
+        sources = fetch_passages(d_embeddings_df, max_passages=4, sort_by='distance', ascending=False)
+        extracts = '###'.join([s['text'] for s in sources])
+        prompt = prompt.format(extracts=extracts, k=k)
 
-                try: 
-                    if validate_format(content):
-                        d_out = json.loads(content)
-                        choices.append(d_out)
-                    else:
-                        print('\n\n\n\n INVALID FORMAT \n\n\n\n\n', content)
-                except Exception as e:
-                    print('Error validating format', e)
-        from extract import consolidate_choices 
-        d_out = consolidate_choices(choices) 
-        return jsonify({'facts': d_out}), 200
+        if len(field['example']) > 0:
+            description = k + ', eg.' + field['example']
+        else:
+            description = k
 
-    if method == 'retrieve':
-        try: 
-            d_embeddings_df = read_embeddings_from_db(sources_ids)
-        except Exception as e:
-            return jsonify(''), 500
-        choices = []
-        target_json = get_few_shot_loop_json('all', out_format='dict')
-        for k,_ in target_json.items():
-            data['messages'] = []
-            # Make query with q 
-            q_embeddings = get_q_embeddings(q=f'What is the {k}?')
-            d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
-            sources = fetch_passages(d_embeddings_df, max_passages=4, sort_by='distance', ascending=False)
-            data['context'] = '###'.join([s['text'] for s in sources])
-            data['context'] = data['context'] + \
-                    '\nKey to extract value for:\n\
-                    "{k}"\n\
-                    Follow the following instructions with extreme care: \n\
-                    Output a valid JSON \n\ {{"{k}": "<extracted_value>"}}\n\
-                        Make sure the response can be parsed by Python json.loads \n\
-                            Make sure the answer is a single string, not a list or dict.\n\
-                                Fill in exactly the same key, do not add or remove keys.\n \
-                                    If the information is not present, show the key and leave the value empty.\n\
-                                        Only respond with the JSON, no commentary.\n'.format(k=k)
-            chat_inputs = DataLoader.construct_chat(data, api_key='')
-            chat_inputs.add_user_message(data["query"])
-            messages = chat_inputs.get_messages('facts')
-            try: 
-                response, success = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.2)
-                if not success: raise InferenceError()
+        functions = [
+            {
+                'name': 'extract',
+                'description': 'Extract fields from a form given extracts from a filled out form', 
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        k: {
+                            'type': 'string',
+                            'description': description 
+                        }
+                }}
+            }
+        ]
+        retry_count = 0
+        while retry_count < 5:
+            try:
+                res = gpt(prompt=prompt,functions=functions)
+                res = list(json.loads(res['choices'][0]['message']['function_call']['arguments']).values())[0]
+                if res == '':
+                    raise RetriableError
+                return k, res 
+
+            except RetriableError:
+                retry_count += 1
+                if retry_count >= 5:
+                    return k, ''
+
             except Exception as e:
-                logger.error(f'\n\n\n\n EXCEPTION: {e} \n\n\n\n\n')
+                return k, ''
 
-            message = response.get('choices', [{}])[0].message
-            content = message['content'].strip()
+    num_threads = 3
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(extract_field, field, d_embeddings_df, prompt) for field in fields]
+        d_out = {}
 
-            try: 
-                if validate_format(content):
-                    d_out = json.loads(content)
-                    choices.append(d_out)
-                else:
-                    print('\n\n\n\n INVALID FORMAT \n\n\n\n\n', content)
-            except Exception as e:
-                print('Error validating format', e)
-        from extract import consolidate_choices 
-        d_out = consolidate_choices(choices) 
-        return jsonify({'facts': d_out}), 200
+        for future in concurrent.futures.as_completed(futures):
+            k,v = future.result()
+            d_out[k] = v
+
+    return jsonify({'facts': d_out}), 200
 
 @app.route('/v1/inference', methods=['POST'])
 @jwt_auth

@@ -5,6 +5,7 @@ import logging as pylogging
 from constants import DTYPE_PDF, DTYPE_TXT, DTYPE_CSV, DTYPE_URL
 from upstream_object import DataLoader
 from db_utils import read_from_db
+from typing import List
 
 import json
 from chatapi import chat_completion, MODEL_MAP
@@ -262,7 +263,7 @@ def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
             break
     return sources
 
-def read_embeddings_from_db(sources_ids):
+def read_embeddings_from_db(sources_ids: List[str]):
     import pandas as pd
     import numpy as np
     from db_utils import read_from_db

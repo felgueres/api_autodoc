@@ -10,27 +10,22 @@ if OPENAI_KEY:
 else:
     print('OpenAI key not set')
 
-completion_tokens = prompt_tokens = 0
+class RetriableError(Exception):
+    pass
 
-class OpenAIError(Exception):
-    pass 
+class FatalError(Exception):
+    pass
 
-@backoff.on_exception(backoff.expo, OpenAIError)
+retriable_exceptions = (openai.error.APIError, openai.error.Timeout, openai.error.RateLimitError)
+
+def non_retriable(e):
+    return not isinstance(e, retriable_exceptions)
+
+@backoff.on_exception(backoff.expo, openai.error.OpenAIError, max_tries=5)
 def completions_with_backoff(**kwargs):
-    return openai.ChatCompletion.create(**kwargs)
+    return openai.ChatCompletion.create(**kwargs, request_timeout=12)
 
-def gpt(prompt, model='gpt-3.5-turbo', temperature=0.5, max_tokens=1000, n=1, stop=None):
+def gpt(prompt, functions, model='gpt-3.5-turbo-0613', temperature=0.5, max_tokens=1000, n=1, stop=None):
     messages = [{'role': 'user', 'content': prompt}]
-    return chatgpt(messages, model=model, temperature=temperature, max_tokens=max_tokens, n=n, stop=stop)
-
-def chatgpt(messages, model="gpt-3.5-turbo", temperature=0.5, max_tokens=1000, n=1, stop=None):
-    global completion_tokens, prompt_tokens
-    outputs = []
-    while n > 0:
-        cnt = min(n, 20)
-        n -= cnt
-        res = completions_with_backoff(model=model, messages=messages, temperature=temperature, max_tokens=max_tokens, stop=stop, n=cnt)
-        outputs.extend([choice['message']['content'] for choice in res['choices']])
-        completion_tokens += res['usage']['completion_tokens']
-        prompt_tokens += res['usage']['prompt_tokens']
-    return outputs
+    res = completions_with_backoff(messages=messages, functions=functions, model=model, temperature=temperature, max_tokens=max_tokens, n=n, stop=stop)
+    return res
