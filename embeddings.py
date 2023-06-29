@@ -1,24 +1,14 @@
 import os
 import pandas as pd
-
-import logging as pylogging
-from constants import DTYPE_PDF, DTYPE_TXT, DTYPE_CSV, DTYPE_URL
+from logger_config import setup_logger
+from constants import DTYPE_PDF, DTYPE_CSV
 from upstream_object import DataLoader
 from db_utils import read_from_db
 from typing import List
 
+logger = setup_logger(__name__)
 import json
 from chatapi import chat_completion, MODEL_MAP
-import sys
-
-logger = pylogging.getLogger()
-logger.setLevel(pylogging.DEBUG)
-ch = pylogging.StreamHandler(sys.stdout)
-ch.setLevel(pylogging.DEBUG)
-FORMAT = "[%(asctime)s %(filename)s:%(levelname)s: Line %(lineno)s - %(funcName)20s() ] %(message)s"
-formatter = pylogging.Formatter(FORMAT, datefmt="%m/%d/%Y %I:%M:%S %p %Z")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 def remove_newlines(serie):
     serie = serie.str.replace('\n', ' ')
@@ -44,31 +34,17 @@ def pdf_to_df(fpath, fname, source_id):
         reader = PdfReader(f)
         texts = []
         for i, page in enumerate(reader.pages):
-            texts.append((f"{fname}, page_{i+1}", page.extract_text()))
-        df = pd.DataFrame(texts, columns=['fname', 'text'])
+            texts.append((i+1, page.extract_text()))
+        df = pd.DataFrame(texts, columns=['page_number', 'text'])
         df['text'] = df.fname + '. ' + remove_newlines(df.text)
         df['source_id'] = source_id
-        df.columns = ['title', 'text', 'source_id']
+        df.columns = ['page_number', 'text', 'source_id']
     logger.info('success with df shape {}'.format(df.shape))
-    return df 
-
-def txt_to_df(fpath, fname, source_id):
-    texts = []
-    with open(fpath, "r") as f:
-        text = f.read()
-    texts.append((fname, text))
-    df = pd.DataFrame(texts, columns=['fname', 'text'])
-    df['text'] = df.fname + '. ' + remove_newlines(df.text)
-    df['source_id'] = source_id
-    df.columns = ['title', 'text', 'source_id']
-    return df 
-
+    return df
 
 # Function to split the text into chunks of a maximum number of tokens
 def split_into_many(title, text, tokenizer, max_tokens=500):
-    # Split the text into sentences
     sentences = text.split('. ')
-    # Get the number of tokens for each sentence
     n_tokens = [len(tokenizer.encode(" " + sentence))
                 for sentence in sentences]
 
@@ -76,23 +52,13 @@ def split_into_many(title, text, tokenizer, max_tokens=500):
     tokens_so_far = 0
     chunk = []
 
-    # Loop through the sentences and tokens joined together in a tuple
     for sentence, token in zip(sentences, n_tokens):
-
-        # If the number of tokens so far plus the number of tokens in the current sentence is greater
-        # than the max number of tokens, then add the chunk to the list of chunks and reset
-        # the chunk and tokens so far
         if tokens_so_far + token > max_tokens:
             chunks.append((title, ". ".join(chunk) + "."))
             chunk = []
             tokens_so_far = 0
-
-        # If the number of tokens in the current sentence is greater than the max number of
-        # tokens, go to the next sentence
         if token > max_tokens:
             continue
-
-        # Otherwise, add the sentence to the chunk and add the number of tokens to the total
         chunk.append(sentence)
         tokens_so_far += token + 1
 
@@ -175,56 +141,6 @@ def db_to_df(source_id, user_id):
     df = df[['title', 'text', 'source_id']]
     print(df.head())
     return df
-
-def url_to_embeddings(user_id, source_id):
-    processed_path = f'users/{user_id}/files/processed/url_{source_id}.{DTYPE_TXT}'
-    n_tokens = 0
-    try:
-        df = db_to_df(source_id, user_id)
-        write_out(df, processed_path)
-    except Exception as e:
-        logger.error(e)
-        return {'status': 'error', 'reason': e, 'n_tokens': n_tokens }
-    try:
-        from db_utils import write_many_to_db
-        df = prepare_df(processed_path)
-        df = get_embeddings(df)
-        df['embeddings'] = df.embeddings.apply(lambda x: str(x)) 
-        df['source_id'] = source_id
-        n_tokens = df.n_tokens.sum()
-        df['facts'] = '' 
-        entries = [(user_id, title, text, n_tokens, embeddings, source_id, facts) for title, text, n_tokens, embeddings, source_id, facts in df[['title', 'text', 'n_tokens', 'embeddings', 'source_id', 'facts']].values]
-        sql_insert_embeddings = '''INSERT INTO embeddings (user_id, title, text, n_tokens, embeddings, source_id, facts) VALUES (?, ?, ?, ?, ?, ?, ?) '''
-        write_many_to_db(sql_insert_embeddings, entries)
-        return {'status': 'success', 'reason': 'Embeddings generated', 'n_tokens': n_tokens}
-    except:
-        return {'status': 'error', 'reason': 'Could not generate embeddings', 'n_tokens': n_tokens }
-
-def txt_to_embeddings(fname, user_id, source_id):
-    fname = os.path.splitext(os.path.basename(fname))[0] 
-    raw_path = f'users/{user_id}/files/{fname}.{DTYPE_TXT}'
-    processed_path = f'users/{user_id}/files/processed/{source_id}_{fname}.{DTYPE_CSV}'
-    n_tokens = 0
-    try:
-        df = txt_to_df(raw_path, fname, source_id)
-        write_out(df, processed_path)
-    except Exception as e:
-        logger.error(e)
-        return {'status': 'error', 'reason': e, 'n_tokens': n_tokens }
-    try:
-        from db_utils import write_many_to_db
-        df = prepare_df(processed_path)
-        df = get_embeddings(df)
-        df['embeddings'] = df.embeddings.apply(lambda x: str(x)) 
-        df['source_id'] = source_id
-        n_tokens = df.n_tokens.sum()
-        df['facts'] = '' 
-        entries = [(user_id, title, text, n_tokens, embeddings, source_id, facts) for title, text, n_tokens, embeddings, source_id, facts in df[['title', 'text', 'n_tokens', 'embeddings', 'source_id', 'facts']].values]
-        sql_insert_embeddings = '''INSERT INTO embeddings (user_id, title, text, n_tokens, embeddings, source_id, facts) VALUES (?, ?, ?, ?, ?, ?, ?) '''
-        write_many_to_db(sql_insert_embeddings, entries)
-        return {'status': 'success', 'reason': 'Embeddings generated', 'n_tokens': n_tokens}
-    except:
-        return {'status': 'error', 'reason': 'Could not generate embeddings', 'n_tokens': n_tokens }
 
 def get_facts_from_passage(passage):
     data = {}
@@ -324,29 +240,3 @@ def cos_sim(a,b):
     from numpy import dot 
     from numpy.linalg import norm
     return dot(a, b)/(norm(a)*norm(b))
-
-# Deprecated
-def read_embeddings(user, sources_ids):
-    import pandas as pd
-    import numpy as np
-    embeddings_folder = f'users/{user}/files/embeddings/'
-    # Get all files in embeddings folder
-    if not os.path.exists(embeddings_folder):
-        return None
-
-    files = os.listdir(embeddings_folder)
-    e_dfs = []
-
-    try:
-        for fname in files:
-            if fname.split('_')[0] in sources_ids:
-                fpath = embeddings_folder + fname 
-                _df = pd.read_csv(fpath, index_col=None)
-                e_dfs.append(_df)
-        # debug 
-        df = pd.concat(e_dfs, axis=0)
-        df['embeddings'] = df.embeddings.apply(eval).apply(np.array)
-        return df
-    except Exception as E:
-        raise E
-        # return {'error': 'Could not read embeddings'} 

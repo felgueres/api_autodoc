@@ -23,6 +23,9 @@ import yaml
 from gpt import gpt
 import concurrent
 
+class RetriableError(Exception):
+    pass
+
 logger = setup_logger(__name__)
 load_dotenv()
 app = Flask(__name__)
@@ -107,7 +110,7 @@ def link_source(user_id):
 
     data = request.json
     source_type = data['source_type']
-
+    
     if source_type == DTYPE_URL:
         try:
             url = data['url']
@@ -122,24 +125,7 @@ def link_source(user_id):
         except Exception as e:
             return jsonify({'error': 'Invalid URL'}), 400
 
-    if source_type == DTYPE_VIDEO:
-        try:
-            print('processing ytvideo with url', data['url'])
-            url = data['url']
-            res, success = process_youtube_video(url) 
-            if not success: 
-                return jsonify({'error': res['error']}), 400 
-            source_id = res['source_id']
-            write_link_to_temp_sql = f"""INSERT INTO temp_links (user_id, source_id, link_id, url, n_tokens, content) VALUES (?, ?, ?, ?, ?, ?)"""
-            entries = [user_id, source_id, res['link_id'], res['url'], res['n_tokens'], res['content']]
-            write_to_db(write_link_to_temp_sql, entries)
-            source_id = file_queue.add(user_id, fname=url, dtype=DTYPE_VIDEO, source_id=source_id)
-        except Exception as e:
-            print('error with ytvideo', e)
-            return jsonify({'error': e}), 400
-
     return jsonify({'upload_success': True, 'source_id': source_id, 'name': res['name']})
-
 
 @app.route('/upload', methods=['POST'])
 @jwt_auth
@@ -177,48 +163,6 @@ def source(user_id, source_id):
     data = record[0]
     print('\n\n\n', 'Data processed: ', data, '\n\n\n')
     return jsonify({'status': data['status'], 'n_tokens': data['n_tokens'], 'name': data['name'], 'source_id': data['source_id']})
-
-@app.route('/v1/post/<post_id>/reactors', methods=['GET'])
-@jwt_auth
-def reactors(user_id, post_id):
-    try:
-        # get reaction counts and if current user has reactred
-        get_reaction_sql = f"""SELECT 
-                                    reaction, 
-                                    count(*) as reaction_cnt,
-                                    SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) as has_reacted
-                               FROM reactions 
-                               WHERE bot_id = ? 
-                               GROUP BY 1"""
-
-        reactors = read_from_db(get_reaction_sql, [user_id,post_id])
-        if reactors:
-            likes = reactors[0]
-            likes['has_reacted'] = True if likes['has_reacted'] == 1 else False
-        else:
-            likes = {'reaction': 'like', 'reaction_cnt':0, 'has_reacted': False}
-        return jsonify(likes)
-    except Exception as e:
-        return jsonify({}), 400
-
-@app.route('/v1/post/<post_id>/reactors', methods=['POST'])
-@jwt_auth
-def react(user_id, post_id):
-    data = request.json
-    reaction = data.get('reaction', 'like')
-    # check if user has already reacted, if so, delete it, else add
-    check_reaction_sql = f"""SELECT * FROM reactions WHERE bot_id = ? AND user_id = ?"""
-    record = read_from_db(check_reaction_sql, [post_id, user_id])
-    try:
-        if record:
-            delete_reaction_sql = f"""DELETE FROM reactions WHERE bot_id = ? AND user_id = ?"""
-            write_to_db(delete_reaction_sql, [post_id, user_id])
-        else:
-            insert_reaction_sql = f"""INSERT INTO reactions (bot_id, user_id, reaction) VALUES (?, ?, ?)"""
-            write_to_db(insert_reaction_sql, [post_id, user_id, reaction])
-        return '', 200
-    except Exception as e:
-        return '', 500
 
 @app.route('/v1/bots/<bot_id>', methods=['GET'])
 @app.route('/v1/bots', defaults={'bot_id': None}, methods=['GET'])

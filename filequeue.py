@@ -62,14 +62,9 @@ class FileQueue:
                 if result:
                     fname = result['name']
                     user_id = result['user_id']
-                    dtype = result['dtype']
                     source_id = result['source_id']
                     if fname.lower().endswith('.pdf'):
                         processing_output = pdf_to_embeddings(fname=fname, user_id=user_id, source_id=source_id)
-                    elif fname.lower().endswith('.txt'):
-                        processing_output = txt_to_embeddings(fname=fname, user=user_id, source_id=source_id)
-                    elif dtype in ['url', 'video']:
-                        processing_output = url_to_embeddings(user_id=user_id, source_id=source_id)
                     status = processing_output['status']
                     n_tokens = processing_output['n_tokens']
                     self.mark_as_processed(source_id, user_id, status, n_tokens)
