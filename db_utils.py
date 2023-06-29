@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
     embeddings TEXT NOT NULL,
     source_id TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    facts TEXT NOT NULL);
+    metadata TEXT NOT NULL DEFAULT '{}')
 '''
 
 sql_create_data_table = '''
@@ -101,7 +101,6 @@ CREATE TABLE IF NOT EXISTS templates (
 '''
 
 
-# Use this as an axample schema
 sql_create_temp_links_table = '''
 CREATE TABLE IF NOT EXISTS temp_links (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

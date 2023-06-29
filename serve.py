@@ -4,7 +4,7 @@ from auth import jwt_auth
 from chatapi import chat_completion
 from dotenv import load_dotenv
 from db_utils import create_store, write_to_db, read_from_db, write_many_to_db
-from constants import MAX_FILE_SIZE, EMPTY_STRING, USERS_WITH_GPT4, DTYPE_URL, DTYPE_VIDEO, MIMETYPES, PLANS
+from constants import MAX_FILE_SIZE, EMPTY_STRING, USERS_WITH_GPT4, MIMETYPES, PLANS
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To, Bcc
 from utils import fill_html, generate_uuid
@@ -17,8 +17,6 @@ from filequeue import FileQueue
 from embeddings import read_embeddings_from_db, get_q_embeddings, create_context, fetch_passages, compute_distances
 from chatapi import MODEL_MAP
 import json
-from web import preflight_url_validation_headless
-from video import process_youtube_video
 import yaml
 from gpt import gpt
 import concurrent
@@ -100,32 +98,6 @@ def check_plan(user_id, check='posts'):
         return cur_messages < max_messages
     else:
         return False
-
-@app.route('/v1/source/create', methods=['POST'])
-@jwt_auth
-def link_source(user_id):
-
-    if not check_plan(user_id, check='posts'):
-        return jsonify({'error': 'You have reached the plan limit. Upgrade your plan to add more.'}), 400
-
-    data = request.json
-    source_type = data['source_type']
-    
-    if source_type == DTYPE_URL:
-        try:
-            url = data['url']
-            res, success = preflight_url_validation_headless(url, user_id)
-            if not success: 
-                return jsonify({'error': res['error']}), 400 
-            source_id = res['source_id']
-            write_link_to_temp_sql = f"""INSERT INTO temp_links (user_id, source_id, link_id, url, n_tokens, content) VALUES (?, ?, ?, ?, ?, ?)"""
-            entries = [user_id, source_id, res['link_id'], res['url'], res['n_tokens'], res['content']]
-            write_to_db(write_link_to_temp_sql, entries)
-            source_id = file_queue.add(user_id, fname=url, dtype=DTYPE_URL, source_id=source_id)
-        except Exception as e:
-            return jsonify({'error': 'Invalid URL'}), 400
-
-    return jsonify({'upload_success': True, 'source_id': source_id, 'name': res['name']})
 
 @app.route('/upload', methods=['POST'])
 @jwt_auth
@@ -507,7 +479,9 @@ def extract(user_id):
         q_embeddings = get_q_embeddings(q=f'What is the {k}?')
         d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
         sources = fetch_passages(d_embeddings_df, max_passages=4, sort_by='distance', ascending=False)
-        extracts = '###'.join([s['text'] for s in sources])
+        extracts = ['Page ' + str(s['page_number']) + '. ' + s['text'] for s in sources]
+        extracts = '<End_of_Extract>\n'.join(extracts)
+
         prompt = prompt.format(extracts=extracts, k=k)
 
         if len(field['example']) > 0:
@@ -525,35 +499,42 @@ def extract(user_id):
                         k: {
                             'type': 'string',
                             'description': description 
+                        },
+                        'page_number': {
+                            'type': 'integer',
+                            'description': 'Page number where the extract was found'
                         }
-                }}
+                },
+                'required': [k, 'page_number']}
             }
         ]
+
         retry_count = 0
+
         while retry_count < 5:
             try:
                 res = gpt(prompt=prompt,functions=functions)
-                res = list(json.loads(res['choices'][0]['message']['function_call']['arguments']).values())[0]
+                res = json.loads(res['choices'][0]['message']['function_call']['arguments'])
                 if res == '':
                     raise RetriableError
-                return k, res 
+                return k, res[k], res['page_number'] 
 
             except RetriableError:
                 retry_count += 1
                 if retry_count >= 5:
-                    return k, ''
+                    return k, '', -1
 
             except Exception as e:
-                return k, ''
+                return k, '', -1
 
     num_threads = 3
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [executor.submit(extract_field, field, d_embeddings_df, prompt) for field in fields]
         d_out = {}
-
         for future in concurrent.futures.as_completed(futures):
-            k,v = future.result()
-            d_out[k] = v
+            k,v,pn = future.result()
+            logger.info(f'Extracted {k} with value {v}')
+            d_out[k] = {'value': v, 'page_number': pn} 
 
     return jsonify({'facts': d_out}), 200
 

@@ -1,9 +1,10 @@
 import os
 import pandas as pd
+import numpy as np
 from logger_config import setup_logger
 from constants import DTYPE_PDF, DTYPE_CSV
 from upstream_object import DataLoader
-from db_utils import read_from_db
+from db_utils import read_from_db, write_many_to_db, write_to_db
 from typing import List
 
 logger = setup_logger(__name__)
@@ -28,33 +29,29 @@ def write_out(df, target_path):
     logger.info('file write with success: {}'.format(file_exists(target_path)))
     return None
 
-def pdf_to_df(fpath, fname, source_id):
+def pdf_to_df(fpath, source_id):
     from PyPDF2 import PdfReader
     with open(fpath, "rb") as f:
         reader = PdfReader(f)
         texts = []
-        for i, page in enumerate(reader.pages):
+        for i, page in enumerate(reader.pages): 
             texts.append((i+1, page.extract_text()))
         df = pd.DataFrame(texts, columns=['page_number', 'text'])
-        df['text'] = df.fname + '. ' + remove_newlines(df.text)
+        df['text'] = remove_newlines(df.text)
         df['source_id'] = source_id
         df.columns = ['page_number', 'text', 'source_id']
-    logger.info('success with df shape {}'.format(df.shape))
     return df
 
-# Function to split the text into chunks of a maximum number of tokens
-def split_into_many(title, text, tokenizer, max_tokens=500):
+def split_into_many(page_number, text, tokenizer, max_tokens=500):
     sentences = text.split('. ')
     n_tokens = [len(tokenizer.encode(" " + sentence))
                 for sentence in sentences]
-
     chunks = []
     tokens_so_far = 0
     chunk = []
-
     for sentence, token in zip(sentences, n_tokens):
         if tokens_so_far + token > max_tokens:
-            chunks.append((title, ". ".join(chunk) + "."))
+            chunks.append((page_number, ". ".join(chunk) + "."))
             chunk = []
             tokens_so_far = 0
         if token > max_tokens:
@@ -70,17 +67,16 @@ def shorten_text(df, tokenizer, max_tokens=500):
         if row['text'] is None:
             continue
         if row['n_tokens'] > max_tokens:
-            shortened += split_into_many(row['title'], row['text'], tokenizer)
+            shortened += split_into_many(row['page_number'], row['text'], tokenizer)
         else:
-            shortened.append((row['title'],row['text']))
+            shortened.append((row['page_number'],row['text']))
     return shortened
 
-def prepare_df(processed_path, max_tokens=500):
+def prepare_df(df, max_tokens=500):
     import tiktoken
     tokenizer = tiktoken.get_encoding("cl100k_base")
-    df = pd.read_csv(processed_path, index_col=None)
     df['n_tokens'] = df.text.apply(lambda x: len(tokenizer.encode(x)))
-    shortened_df = pd.DataFrame(shorten_text(df, tokenizer, max_tokens), columns=['title', 'text'])
+    shortened_df = pd.DataFrame(shorten_text(df, tokenizer, max_tokens), columns=['page_number', 'text'])
     shortened_df['n_tokens'] = shortened_df.text.apply(lambda x: len(tokenizer.encode(x)))
     return shortened_df
 
@@ -89,45 +85,35 @@ def get_embeddings(df):
     return df
 
 def pdf_to_embeddings(fname, user_id, source_id):
-    from db_utils import write_many_to_db, write_to_db
-    fname = os.path.splitext(os.path.basename(fname))[0]  # get filename without extension
+    fname = os.path.splitext(os.path.basename(fname))[0] 
     raw_path = f'users/{user_id}/files/{fname}.{DTYPE_PDF}'
-    processed_path = f'users/{user_id}/files/processed/{source_id}_{fname}.{DTYPE_CSV}'
     n_tokens = 0
 
     try:
         with open(raw_path, 'rb') as f:
             data = f.read()
             add_blob_q = '''INSERT INTO blobs (source_id,data,dtype) VALUES (?,?,?)'''
+
         blob_entry = (source_id, data, DTYPE_PDF)
         write_to_db(add_blob_q, blob_entry)
 
-    except Exception as e:
-        logger.info(f'error writing blob: {e}')
-        return {'status': 'error', 'reason': e, 'n_tokens': n_tokens }
-
-    try:
         df = pdf_to_df(raw_path, fname, source_id)
-        write_out(df, processed_path)
-
-    except Exception as e:
-        logger.info(f'error: {e}')
-        return {'status': 'error', 'reason': e, 'n_tokens': n_tokens }
-    
-    try:
-        df = prepare_df(processed_path)
+        df = prepare_df(df)
         df = get_embeddings(df)
         df['embeddings'] = df.embeddings.apply(lambda x: str(x)) 
         df['source_id'] = source_id
+        df['metadata'] = df.apply(lambda x: json.dumps({'page_number': x['page_number']}), axis=1) 
+        df['title'] = fname 
+        logger.info(df.columns)
         n_tokens = df.n_tokens.sum()
-        df['facts'] = '' 
-        entries = [(user_id, title, text, n_tokens, embeddings, source_id, facts) for title, text, n_tokens, embeddings, source_id, facts in df[['title', 'text', 'n_tokens', 'embeddings', 'source_id', 'facts']].values]
-        sql_insert_embeddings = '''INSERT INTO embeddings (user_id, title, text, n_tokens, embeddings, source_id, facts) VALUES (?, ?, ?, ?, ?, ?, ?) '''
+        entries = [(user_id, title, text, n_tokens, embeddings, source_id, metadata) for title, text, n_tokens, embeddings, source_id, metadata in df[['title', 'text', 'n_tokens', 'embeddings', 'source_id', 'metadata']].values]
+        sql_insert_embeddings = '''INSERT INTO embeddings (user_id, title, text, n_tokens, embeddings, source_id, metadata) VALUES (?, ?, ?, ?, ?, ?,?) '''
         logger.info('Writing df out with shape {}'.format(df.shape))
         write_many_to_db(sql_insert_embeddings, entries)
         return {'status': 'success', 'reason': 'Embeddings generated', 'n_tokens': n_tokens}
+
     except Exception as e:
-        logger.info(f'-----\n\n\nERROR PROCESSING EMBEDDINGS: {e} \n\n\n------')
+        logger.info(f'-----: {e} ------')
         return {'status': 'error', 'reason': 'Could not generate embeddings', 'n_tokens': n_tokens }
 
 
@@ -141,23 +127,6 @@ def db_to_df(source_id, user_id):
     df = df[['title', 'text', 'source_id']]
     print(df.head())
     return df
-
-def get_facts_from_passage(passage):
-    data = {}
-    data['messages'] = []
-    data['model_id'] = 'gpt3'
-    data['context'] = passage + '\n' + 'You should only respond in unnested JSON format as described below. \n Response format: {"facts": {"fact1": "value1", "fact2": "value2"}, "summary": "short summary"} \n Ensure the response can be parsed by Python json.loads' 
-    try:
-        chat_inputs = DataLoader.construct_chat(data, api_key=os.environ['OPENAI_KEY'])
-        messages = chat_inputs.get_messages('facts')
-        response = chat_completion(model=MODEL_MAP[chat_inputs.model_id], messages=messages, temp=0.9)
-        message = response.get('choices', [{}])[0].message
-        content = message['content'].strip()
-        facts = json.loads(content)
-        return facts 
-    except:
-        facts = {}
-    return facts
 
 def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
     cur_len = 0
@@ -180,9 +149,6 @@ def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
     return sources
 
 def read_embeddings_from_db(sources_ids: List[str]):
-    import pandas as pd
-    import numpy as np
-    from db_utils import read_from_db
     embeddings_sql = 'SELECT * FROM embeddings WHERE LENGTH(text) > (LENGTH(title) + 1) AND source_id IN (%s)' % ','.join('?' * len(sources_ids))
     data = read_from_db(embeddings_sql, [*sources_ids]) 
     df = pd.DataFrame(data)
@@ -233,7 +199,14 @@ def fetch_passages(d_embeddings_df, max_passages=5, sort_by='distance', ascendin
         cur_len += row['n_tokens'] + 4
         if i >= max_passages:
             break
-        sources.append({'id': row['source_id'],'title': row['title'], 'text': row['text'], 'score': 0, 'n_tokens': row['n_tokens']})
+        m = json.loads(row['metadata'])
+        sources.append({'id': row['source_id'],
+                        'title': row['title'], 
+                        'text': row['text'], 
+                        'score': 0, 
+                        'n_tokens': row['n_tokens'], 
+                        'page_number': m['page_number']})
+    print(sources)
     return sources 
 
 def cos_sim(a,b):

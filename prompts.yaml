@@ -1,7 +1,7 @@
 general_form:
   prompt: |-
     You are an expert analyst trained to extract data from varied forms into structured data.
-    Given the following extract from a form, extract the value that corresponds to a given key.
+    Given the following extract from a form, extract the value that corresponds to a given key, and the page number where the key was found.
     Before extracting, make sure to follow these instructions:
 
     [Instructions] 
