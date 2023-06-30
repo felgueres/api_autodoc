@@ -131,11 +131,8 @@ def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
     cur_len = 0
     sources = [] 
     break_outer = False
-    # get the first n_passages for each source inplace
     for source_id in e_df.source_id.unique():
-        # get first passage
         _df = e_df[e_df.source_id == source_id].copy().iloc[:1]
-        # then sample n passages 
         _df = _df.append(e_df[e_df.source_id == source_id].copy().sample(n_passages))
         for _, row in _df.iterrows():
             cur_len += row['n_tokens'] + 4
@@ -180,7 +177,7 @@ def create_context(d_embeddings_df, max_len=2300, max_passages=8):
     refs = [] 
     for i, row in d_embeddings_df.sort_values('distance', ascending=False).reset_index(drop=True).iterrows():
         cur_len += row['n_tokens'] + 4
-        if cur_len > max_len or i >= max_passages: # experiment: row['distance'] < 0.5 or (row['distance'] < 0.8 and cur_len > 500):
+        if cur_len > max_len or i >= max_passages: 
             break
         print(row['text'], row['distance'])
         refs.append({'id': row['source_id'], 'title': row['title'], 'text': row['text'].replace(row['title'],'').strip()})

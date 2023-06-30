@@ -1,4 +1,3 @@
-# TODO: Remove class
 class InferenceUtils(object):
     def __init__(self):
         pass

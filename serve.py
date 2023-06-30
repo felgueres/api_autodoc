@@ -4,7 +4,7 @@ from db import create_store
 from constants import MAX_FILE_SIZE
 from flask_cors import CORS
 from taskqueue import FileQueue
-from resources import sources_bp
+from resources import resources_bp
 from core import core_bp
 from user import user_bp
 import os
@@ -20,7 +20,7 @@ app.secret_key = os.getenv("SECRET_KEY")
 app.config['file_queue'] = FileQueue() 
 CORS(app)
 
-app.register_blueprint(sources_bp)
+app.register_blueprint(resources_bp)
 app.register_blueprint(core_bp)
 app.register_blueprint(user_bp)
 
