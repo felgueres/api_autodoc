@@ -4,7 +4,7 @@ Do you need fast and accurate way to extract text buried in PDFs?
 
 Autodoc is a web service that transforms documents into decision-ready data using AI.
 
-This is the client running at https://autodocai.com
+Runs at https://autodocai.com
 
 ## Features
 
