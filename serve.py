@@ -1,25 +1,26 @@
 from logger_config import setup_logger
-from flask import Flask, request, jsonify, render_template, redirect, send_file, Response
+import time
+from flask import Flask, request, jsonify, render_template, redirect, send_file
 from auth import jwt_auth
-from chatapi import chat_completion
 from dotenv import load_dotenv
 from db_utils import create_store, write_to_db, read_from_db, write_many_to_db
-from constants import MAX_FILE_SIZE, EMPTY_STRING, USERS_WITH_GPT4, MIMETYPES, PLANS
+from constants import MAX_FILE_SIZE, EMPTY_STRING, MIMETYPES, PLANS
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To, Bcc
 from utils import fill_html, generate_uuid
-from upstream_object import DataLoader
 import os
 from send_email import send_upload_email
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from filequeue import FileQueue
-from embeddings import read_embeddings_from_db, get_q_embeddings, create_context, fetch_passages, compute_distances
-from chatapi import MODEL_MAP
+from embeddings import read_embeddings_from_db, get_q_embeddings, fetch_passages, compute_distances
 import json
 import yaml
 from gpt import gpt
 import concurrent
+import json
+from embeddings import read_embeddings_from_db
+from concurrent.futures import ThreadPoolExecutor
 
 class RetriableError(Exception):
     pass
@@ -39,9 +40,6 @@ TEST_STREAM = True
 
 create_store()
 file_queue = FileQueue()
-
-PAYED_CREDITS = 100
-FREE_CREDITS = 10
 
 @app.errorhandler(408)
 @app.errorhandler(404)
@@ -99,7 +97,7 @@ def check_plan(user_id, check='posts'):
     else:
         return False
 
-@app.route('/upload', methods=['POST'])
+@app.route('/v1/upload', methods=['POST'])
 @jwt_auth
 def upload(user_id):
 
@@ -327,7 +325,6 @@ def get_templates(user_id, template_id):
             return jsonify({'templates': templates}), 200
 
     except Exception as e:
-        print(e)
         return '', 500
 
 @app.route('/v1/bot/new', methods=['POST'])
@@ -460,34 +457,32 @@ def get_template(template_id):
 @app.route('/v1/search', methods=['POST'])
 @jwt_auth
 def extract(user_id):
-    import json
-    from embeddings import read_embeddings_from_db
-    from concurrent.futures import ThreadPoolExecutor
 
     data = request.json
     fields = get_template(data['template_id'])
     d_embeddings_df = read_embeddings_from_db([data['sources'][0]['source_id']])
-    print(d_embeddings_df.shape)
 
     configs = yaml.safe_load(open('./prompts.yaml','r'))
     prompt = configs['general_form']['prompt']
 
     d_out = {}
+    global time
+    time = time.time()
 
     def extract_field(field, d_embeddings_df, prompt):
         k = field['name']
+        type = 'string' if field['type'].lower() == 'text' else 'number'
+        description = field['description']
+
+        print(k, type, description)
+
         q_embeddings = get_q_embeddings(q=f'What is the {k}?')
         d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
-        sources = fetch_passages(d_embeddings_df, max_passages=4, sort_by='distance', ascending=False)
+        sources = fetch_passages(d_embeddings_df, max_passages=3, sort_by='distance', ascending=False)
         extracts = ['Page ' + str(s['page_number']) + '. ' + s['text'] for s in sources]
-        extracts = '<End_of_Extract>\n'.join(extracts)
+        extracts = '---\n'.join(extracts)
 
-        prompt = prompt.format(extracts=extracts, k=k)
-
-        if len(field['example']) > 0:
-            description = k + ', eg.' + field['example']
-        else:
-            description = k
+        prompt = prompt.format(extracts=extracts, k=k, type=type, description=description)
 
         functions = [
             {
@@ -497,12 +492,12 @@ def extract(user_id):
                     'type': 'object',
                     'properties': {
                         k: {
-                            'type': 'string',
-                            'description': description 
+                            'type': type,
+                            'description': description
                         },
                         'page_number': {
-                            'type': 'integer',
-                            'description': 'Page number where the extract was found'
+                            'type': 'number',
+                            'description': 'Page number where the extract was found. If the extract is not found, the page number is -1.'
                         }
                 },
                 'required': [k, 'page_number']}
@@ -511,17 +506,17 @@ def extract(user_id):
 
         retry_count = 0
 
-        while retry_count < 5:
+        while retry_count < 3:
             try:
                 res = gpt(prompt=prompt,functions=functions)
                 res = json.loads(res['choices'][0]['message']['function_call']['arguments'])
-                if res == '':
+                if res[k] == '' or res[k] == -1:
                     raise RetriableError
                 return k, res[k], res['page_number'] 
 
             except RetriableError:
                 retry_count += 1
-                if retry_count >= 5:
+                if retry_count >= 3:
                     return k, '', -1
 
             except Exception as e:
@@ -537,98 +532,6 @@ def extract(user_id):
             d_out[k] = {'value': v, 'page_number': pn} 
 
     return jsonify({'facts': d_out}), 200
-
-@app.route('/v1/inference', methods=['POST'])
-@jwt_auth
-def stream_v1(user_id):
-    # This allows for demo, logic is odd though
-    if user_id == 'anon':
-        pass
-    else:
-        if not check_plan(user_id, check='messages'):
-            return jsonify({'error': 'You have reached your plan limit. Upgrade your plan to continue.'}), 402
-
-    data = request.json
-    data['conversation_id'] = data['conversation_id'] if data['conversation_id'] else generate_uuid()
-    sources_ids = [s['source_id'] for s in data["sources"]] if data["sources"] else []
-
-    if sources_ids:
-        d_embeddings_df = read_embeddings_from_db(sources_ids)
-        if d_embeddings_df is not None:
-            from embeddings import compute_distances
-            q_embeddings = get_q_embeddings(q=data['user_message'])
-            d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
-            refs = create_context(d_embeddings_df, max_len=7000 if user_id in USERS_WITH_GPT4 else 3000,
-                                  max_passages=100 if user_id == USERS_WITH_GPT4 else 8)
-            ls = ['{}: {}'.format(ref['title'], ref['text']) for ref in refs]
-            s = '###'.join(ls)
-            data['context'] = s
-    else:
-        data['context'] = ''
-        refs = []
-
-    try:
-        chat_inputs = DataLoader.construct_chat(data, api_key='sk-123')
-        print(chat_inputs)
-        user_message_id = chat_inputs.user_message_id
-        user_message = chat_inputs.user_message
-        messages = chat_inputs.get_messages()
-
-    except Exception as e:
-        return jsonify({'error': 'Something went wrong. Please retry.'}), 500
-
-    response, success = chat_completion(model='gpt-4' if user_id in USERS_WITH_GPT4 else MODEL_MAP[chat_inputs.model_id], messages=messages, temp=chat_inputs.temperature, stream=TEST_STREAM)
-
-    if not success: 
-        return jsonify({'error': 'Something went wrong. Please retry.'}), 500
-
-    def generate(user_message, user_message_id, chat_inputs):
-        content = ''
-        try: 
-            for e in response:
-                stop = e['choices'][0]['finish_reason']
-                content += e['choices'][0]['delta'].get('content','')
-                if stop == 'stop': 
-                    try:
-                        # Save to db
-                        insert_message_sql = f"""INSERT INTO chat (user_id, role, content, message_id, conversation_id, chatbot_id) VALUES (?, ?, ?, ?, ?, ?)"""
-                        user_message = [user_id, 'user', user_message, user_message_id, chat_inputs.conversation_id, chat_inputs.chatbot_id]
-                        assistant_message = [user_id, 'assistant', content, user_message_id+1, chat_inputs.conversation_id, chat_inputs.chatbot_id]
-                        write_to_db(insert_message_sql, user_message)
-                        write_to_db(insert_message_sql, assistant_message)
-                        sql_upsert_messages = f'INSERT INTO usage (user_id, n_chatbots, n_sources, n_tokens, n_messages) VALUES (?, 0, 0, 0, 1) ON CONFLICT(user_id) DO UPDATE SET n_messages = n_messages + 1;'
-                        write_to_db(sql_upsert_messages, [user_id])
-                        logger.info(f'Saved last message to db')
-                    except Exception as e:
-                        logger.error(f'Error saving last message to db with: {e}')
-
-                res = {'content': content, 'message_id': user_message_id+1, 'conversation_id': chat_inputs.conversation_id, 'refs' : refs, 'finish': stop is not None }
-                yield 'data: ' + json.dumps(res) + '\n\n'
-
-        except GeneratorExit:
-            logger.info('Generator exited ')
-        
-    return Response(generate(user_message,user_message_id, chat_inputs), mimetype='text/event-stream')
-
-@app.route('/v1/conversation/<conversation_id>', methods=['GET'])
-@jwt_auth
-def chat(user_id, conversation_id):
-    # TODO: Add PATCH is_visible so users can delete conversations
-    conversation_id_sql = f"""SELECT * FROM chat WHERE conversation_id = ? and user = ? ORDER BY message_id ASC"""
-    conversation = read_from_db(conversation_id_sql, [conversation_id, user_id])
-
-    messages = []
-    for conv in conversation:
-        messages.append({
-            'id': conv.get('message_id', None),
-            'role': conv.get('role', None),
-            'content': conv.get('content', None)
-        })
-
-    # get latest bot used
-    bot_id = conversation[-1]['chatbot_id']
-    return jsonify({'messages': messages, 'conversationId': conversation_id, "botId": bot_id})
-
 
 @app.route('/v1/account', methods=['GET'])
 @jwt_auth

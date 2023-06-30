@@ -1,23 +1,25 @@
 general_form:
   prompt: |-
     You are an expert analyst trained to extract data from varied forms into structured data.
-    Given the following extract from a form, extract the value that corresponds to a given key, and the page number where the key was found.
+    Given the following page-numbered extracts, get the value that corresponds to a given key.
     Before extracting, make sure to follow these instructions:
 
-    [Instructions] 
-    1. Output a valid JSON
-    2. Make sure the response can be parsed by Python json.loads
-    3. Make sure the answer is a single string, not a list or dict.
-    4. Fill in exactly the same key, do not add or remove keys.
-    5. If the information is not present, show the key and leave the value empty.
-    6. Only respond with the JSON, no commentary.
+    Instructions:
+    1. If you don't know the answer, give your best guess or leave it blank.
+    2. Get the page number at the beginning of an extract where the key was taken from. If uncertain, respond with -1.
+    3. Use the type of the key to help you understand the data.
+    4. Use the key description to help you understand the data.
 
-    [START OF DATA]
+    [START OF EXTRACTS]
 
     [Extracts]: {extracts}
 
+    [END OF EXTRACTS]
+
     [Key]: {k}
 
-    [END OF DATA]
+    [Key Description]: {description}
+
+    [Type]: {type}
 
     [Answer]:
