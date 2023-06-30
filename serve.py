@@ -36,3 +36,6 @@ def page_not_found(_):
 
 @app.route('/')
 def index(): return redirect("https://autodocai.com", code=302)
+
+if __name__ == '__main__':
+    app.run()

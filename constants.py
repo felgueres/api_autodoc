@@ -15,3 +15,13 @@ MIMETYPES = {
     'png': 'image/png',
     'video': 'video/mp4'
 }
+
+PLANS = {
+  'free': {
+    'name': 'FREE',
+    'maxMessages': 30,
+    'maxBots': 5,
+    'desc': 'Easiest way to try Upstream',
+    'button': False
+  }
+}
