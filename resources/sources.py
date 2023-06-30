@@ -1,10 +1,10 @@
-from . import sources_bp
+from . import resources_bp
 from extra.auth import jwt_auth
 from flask import jsonify
 from db import read_from_db
 from extra.utils import read_query
 
-@sources_bp.route('/v1/source/<source_id>', methods=['GET'])
+@resources_bp.route('/v1/source/<source_id>', methods=['GET'])
 @jwt_auth
 def source(user_id, source_id):
     sourceq = read_query('source')

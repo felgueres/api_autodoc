@@ -1,16 +1,16 @@
+from . import resources_bp
 import os
 from flask import jsonify, send_file
 from extra.utils import read_query
 from extra.auth import jwt_auth
 from constants import MIMETYPES
 from db import read_from_db
-from . import sources_bp
 from flask import request, current_app
 from werkzeug.utils import secure_filename
 from extra.send_email import send_upload_email
 SG_API_KEY = os.getenv("SG_API_KEY")
 
-@sources_bp.route('/v1/file/upload', methods=['POST'])
+@resources_bp.route('/v1/file/upload', methods=['POST'])
 @jwt_auth
 def upload(user_id):
     f = request.files.get('inputFile')
@@ -33,7 +33,7 @@ def upload(user_id):
     send_upload_email(email='pablo@upstreamapi.com', user=user_id, title=fname)
     return jsonify({'upload_sucess': True if os.path.exists(fpath) else False, 'source_id': source_id}), 200
 
-@sources_bp.route('/v1/file/<source_id>', methods=['GET'])
+@resources_bp.route('/v1/file/<source_id>', methods=['GET'])
 @jwt_auth
 def get_file(user_id, source_id):
     try:

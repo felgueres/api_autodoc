@@ -1,4 +1,4 @@
-from . import sources_bp
+from . import resources_bp
 from extra.auth import jwt_auth
 from flask import jsonify, request
 from extra.utils import generate_uuid
@@ -8,7 +8,7 @@ from db import read_from_db, write_to_db
 from extra.logger_config import setup_logger
 logger = setup_logger(__name__)
 
-@sources_bp.route('/v1/template/new', methods=['POST'])
+@resources_bp.route('/v1/template/new', methods=['POST'])
 @jwt_auth
 def new_template(user_id):
     data = request.json
@@ -27,7 +27,7 @@ def new_template(user_id):
         return '', 500
     return jsonify({'template_id': template_id}), 200 
 
-@sources_bp.route('/v1/templates/<template_id>', methods=['PATCH'])
+@resources_bp.route('/v1/templates/<template_id>', methods=['PATCH'])
 @jwt_auth
 def update_template(user_id, template_id):
     data = request.json
@@ -48,7 +48,7 @@ def update_template(user_id, template_id):
     except Exception:
         return '', 500
 
-@sources_bp.route('/v1/templates/<template_id>', methods=['DELETE'])
+@resources_bp.route('/v1/templates/<template_id>', methods=['DELETE'])
 @jwt_auth
 def delete_template(user_id, template_id):
     bot_delete_sql = f"""DELETE FROM templates WHERE template_id = ? and user_id = ?"""
@@ -59,8 +59,8 @@ def delete_template(user_id, template_id):
         logger.error(e)
         return jsonify({'success': False}), 200
 
-@sources_bp.route('/v1/templates/<template_id>', methods=['GET'])
-@sources_bp.route('/v1/templates', defaults={'template_id': None}, methods=['GET'])
+@resources_bp.route('/v1/templates/<template_id>', methods=['GET'])
+@resources_bp.route('/v1/templates', defaults={'template_id': None}, methods=['GET'])
 @jwt_auth
 def get_templates(user_id, template_id):
     if template_id:
