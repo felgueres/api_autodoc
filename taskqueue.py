@@ -1,21 +1,20 @@
-import threading
-import time
-from constants import SQLITE_DB, DATA_SOURCES_TABLE
+from constants import SQLITE_DB
 from  db import write_to_db, read_from_db
 from embeddings import pdf_to_embeddings 
+import threading
+import time
 
 from extra.logger_config import setup_logger
 logger = setup_logger(__name__)
 
 class FileQueue:
-    def __init__(self, db_path=SQLITE_DB, table_name=DATA_SOURCES_TABLE, max_size=30):
+    def __init__(self, db_path=SQLITE_DB, max_size=30):
         '''
         db_path: path to the sqlite3 database
         table_name: name of the table to use
         max_size: maximum number of items to store in the queue
         '''
         self.db_path = db_path
-        self.table_name = table_name
         self.max_size = max_size
         self.processing_cnt = 0
         self.lock = threading.Lock()
@@ -31,7 +30,7 @@ class FileQueue:
         '''
         from extra.utils import generate_uuid
         source_id = generate_uuid(length=8) if not source_id else source_id
-        add_file_q = f'INSERT INTO {DATA_SOURCES_TABLE} (source_id,user_id,name,dtype) VALUES (?,?,?,?)'
+        add_file_q = f'INSERT INTO data_sources (source_id,user_id,name,dtype) VALUES (?,?,?,?)'
         file_entry = [source_id,user,fname,dtype]
         with self.lock:
             write_to_db(add_file_q, file_entry)
@@ -41,12 +40,12 @@ class FileQueue:
         '''Get pending from db
         Returns filename: str
         '''
-        read_q = f'SELECT source_id, user_id, name, status, dtype FROM {DATA_SOURCES_TABLE} WHERE status = "pending" ORDER BY created_at ASC LIMIT 1'
+        read_q = f'SELECT source_id, user_id, name, status, dtype FROM data_sources WHERE status = "pending" ORDER BY created_at ASC LIMIT 1'
         with self.lock:
             result = read_from_db(read_q)
             result = result[0] if result else None 
             if result:
-                update_q = f'UPDATE {DATA_SOURCES_TABLE} SET status = "processing" WHERE source_id = ?'
+                update_q = f'UPDATE data_sources SET status = "processing" WHERE source_id = ?'
                 write_to_db(update_q, [result['source_id']])
                 self.processing_cnt += 1
                 return result
@@ -78,10 +77,8 @@ class FileQueue:
     def mark_as_processed(self, source_id, user_id, status, n_tokens):
         '''Mark file as processed
         '''
-        print('markigin with', source_id, user_id, status, n_tokens)
-        update_q = f'UPDATE {self.table_name} SET status = ?, n_tokens = ? WHERE source_id = ? AND user_id = ?' 
+        update_q = f'UPDATE data_sources SET status = ?, n_tokens = ? WHERE source_id = ? AND user_id = ?' 
         sql_upsert_sources = f'INSERT INTO usage (user_id, n_chatbots, n_sources, n_tokens, n_messages) VALUES (?, 0, 1, ?, 0) ON CONFLICT(user_id) DO UPDATE SET n_sources = n_sources + 1, n_tokens = n_tokens + ?' 
-
         with self.lock:
             try:
                 write_to_db(update_q, [status, int(n_tokens), source_id, user_id])

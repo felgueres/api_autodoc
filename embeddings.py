@@ -2,13 +2,19 @@ import os
 import pandas as pd
 import numpy as np
 from constants import DTYPE_PDF
-from db import read_from_db, write_many_to_db, write_to_db
 from typing import List
 import openai
 import time
 import json
+
+from db import read_from_db, write_many_to_db, write_to_db
 from extra.logger_config import setup_logger
+from numpy import dot 
+from numpy.linalg import norm
+
 logger = setup_logger(__name__)
+
+def cos_sim(a,b): return dot(a, b)/(norm(a)*norm(b))
 
 def remove_newlines(serie):
     serie = serie.str.replace('\n', ' ')
@@ -23,9 +29,8 @@ def file_exists(file_path):
 def write_out(df, target_path):
     if not os.path.exists(os.path.dirname(target_path)):
         os.makedirs(os.path.dirname(target_path))
-    logger.info('writing df: {}'.format(df.head()))
     df.to_csv(target_path, index=False, escapechar='\\')
-    logger.info('file write with success: {}'.format(file_exists(target_path)))
+    logger.info('Df write with success: {}'.format(file_exists(target_path)))
     return None
 
 def pdf_to_df(fpath, source_id):
@@ -33,8 +38,7 @@ def pdf_to_df(fpath, source_id):
     with open(fpath, "rb") as f:
         reader = PdfReader(f)
         texts = []
-        for i, page in enumerate(reader.pages): 
-            texts.append((i+1, page.extract_text()))
+        for i, page in enumerate(reader.pages): texts.append((i+1, page.extract_text()))
         df = pd.DataFrame(texts, columns=['page_number', 'text'])
         df['text'] = remove_newlines(df.text)
         df['source_id'] = source_id
@@ -43,11 +47,12 @@ def pdf_to_df(fpath, source_id):
 
 def split_into_many(page_number, text, tokenizer, max_tokens=500):
     sentences = text.split('. ')
-    n_tokens = [len(tokenizer.encode(" " + sentence))
-                for sentence in sentences]
+    n_tokens = [len(tokenizer.encode(" " + sentence)) for sentence in sentences]
+
     chunks = []
-    tokens_so_far = 0
     chunk = []
+    tokens_so_far = 0
+
     for sentence, token in zip(sentences, n_tokens):
         if tokens_so_far + token > max_tokens:
             chunks.append((page_number, ". ".join(chunk) + "."))
@@ -103,52 +108,20 @@ def pdf_to_embeddings(fname, user_id, source_id):
         df['source_id'] = source_id
         df['metadata'] = df.apply(lambda x: json.dumps({'page_number': x['page_number']}), axis=1) 
         df['title'] = fname 
-        logger.info(df.columns)
         n_tokens = df.n_tokens.sum()
         entries = [(user_id, title, text, n_tokens, embeddings, source_id, metadata) for title, text, n_tokens, embeddings, source_id, metadata in df[['title', 'text', 'n_tokens', 'embeddings', 'source_id', 'metadata']].values]
         sql_insert_embeddings = '''INSERT INTO embeddings (user_id, title, text, n_tokens, embeddings, source_id, metadata) VALUES (?, ?, ?, ?, ?, ?,?) '''
-        logger.info('Writing df out with shape {}'.format(df.shape))
         write_many_to_db(sql_insert_embeddings, entries)
-        return {'status': 'success', 'reason': 'Embeddings generated', 'n_tokens': n_tokens}
+        return {'status': 'success', 'n_tokens': n_tokens}
 
     except Exception as e:
-        logger.info(f'-----: {e} ------')
-        return {'status': 'error', 'reason': 'Could not generate embeddings', 'n_tokens': n_tokens }
-
-
-def db_to_df(source_id, user_id):
-    url_data_sql = """SELECT * FROM temp_links WHERE source_id = ? AND user_id = ?"""
-    data = read_from_db(url_data_sql, [source_id, user_id])
-    df = pd.DataFrame(data)
-    df.columns = ['id', 'user_id', 'source_id', 'link_id', 'url', 'n_tokens', 'text', 'created_at']
-    df['title'] = df.url
-    df['text'] = df.url + '. ' + remove_newlines(df.text)
-    df = df[['title', 'text', 'source_id']]
-    print(df.head())
-    return df
-
-def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
-    cur_len = 0
-    sources = [] 
-    break_outer = False
-    for source_id in e_df.source_id.unique():
-        _df = e_df[e_df.source_id == source_id].copy().iloc[:1]
-        _df = _df.append(e_df[e_df.source_id == source_id].copy().sample(n_passages))
-        for _, row in _df.iterrows():
-            cur_len += row['n_tokens'] + 4
-            if cur_len > max_len:
-                break_outer = True 
-                break
-            sources.append({'id': row['source_id'],'title': row['title'], 'text': row['text']})
-        if break_outer:
-            break
-    return sources
+        logger.info({e})
+        return {'status': 'error', 'n_tokens': n_tokens }
 
 def read_embeddings_from_db(sources_ids: List[str]):
     embeddings_sql = 'SELECT * FROM embeddings WHERE source_id IN (%s)' % ','.join('?' * len(sources_ids))
     data = read_from_db(embeddings_sql, [*sources_ids]) 
     df = pd.DataFrame(data)
-    if df.embeddings.iloc[0] == '': return None
     df['embeddings'] = df.embeddings.apply(eval).apply(np.array)
     return df
 
@@ -160,28 +133,17 @@ def get_q_embeddings(q, engine='text-embedding-ada-002', max_retries=5):
     openai.api_key = os.environ['OPENAI_KEY']
     retry_delay = 1
     backoff = 2
+    # TODO: use backoff library 
     for i in range(max_retries):
         try:
             q_embeddings = openai.Embedding.create(input=q, engine=engine)['data'][0]['embedding']
             return q_embeddings
         except Exception as e:
             print(f"Error: {e}")
-            if i == max_retries - 1:
+            if i == max_retries - 1: 
                 return None
             time.sleep(retry_delay)
             retry_delay *= backoff
-    return None
-
-def create_context(d_embeddings_df, max_len=2300, max_passages=8):
-    cur_len = 0
-    refs = [] 
-    for i, row in d_embeddings_df.sort_values('distance', ascending=False).reset_index(drop=True).iterrows():
-        cur_len += row['n_tokens'] + 4
-        if cur_len > max_len or i >= max_passages: 
-            break
-        print(row['text'], row['distance'])
-        refs.append({'id': row['source_id'], 'title': row['title'], 'text': row['text'].replace(row['title'],'').strip()})
-    return refs 
 
 def fetch_passages(d_embeddings_df, max_passages=5, sort_by='distance', ascending=False):
     cur_len = 0
@@ -198,8 +160,3 @@ def fetch_passages(d_embeddings_df, max_passages=5, sort_by='distance', ascendin
                         'n_tokens': row['n_tokens'], 
                         'page_number': m['page_number']})
     return sources 
-
-def cos_sim(a,b):
-    from numpy import dot 
-    from numpy.linalg import norm
-    return dot(a, b)/(norm(a)*norm(b))

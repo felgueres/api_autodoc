@@ -17,7 +17,7 @@ create_store()
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE 
 app.secret_key = os.getenv("SECRET_KEY")
-app.config['file_queue'] = FileQueue() 
+app.config['file_queue'] = FileQueue()
 CORS(app)
 
 app.register_blueprint(resources_bp)
