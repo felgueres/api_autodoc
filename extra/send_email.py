@@ -3,15 +3,10 @@ from sendgrid.helpers.mail import Mail, From, To, Bcc
 from extra.utils import fill_html
 from dotenv import load_dotenv
 import os
-
 import sys
-sys.path.append('./')
 
 load_dotenv()
 SG_API_KEY = os.getenv("SG_API_KEY")
-
-FREE_CREDITS = 15
-PAYED_CREDITS = 100
 
 def send_onboarding_email(email, user_id):
     message = Mail(
@@ -48,8 +43,7 @@ def payed_customer(email):
 
 
 if __name__ == '__main__':
-    args = sys.argv
-    print(args)
+    args = sys.argv; print(args)
     if len(args) == 2:
         if args[1] == '--onboarding':
             send_onboarding_email('pablofelgueres@gmail.com', 'abc123')
