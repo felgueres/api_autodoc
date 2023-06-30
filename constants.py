@@ -5,7 +5,6 @@ DTYPE_CSV = 'csv'
 DTYPE_PNG = 'png'
 MAX_FILE_SIZE = 16 * 1024 * 1024
 EMPTY_STRING = ''
-USERS_WITH_GPT4=['@gmail.com']
 DEMO_USER = 'hi@upstreamapi.com'
 
 MIMETYPES = {
