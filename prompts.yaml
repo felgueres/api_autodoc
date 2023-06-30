@@ -5,8 +5,8 @@ general_form:
     Before extracting, make sure to follow these instructions:
 
     Instructions:
-    1. If you don't know the answer, give your best guess or leave it blank.
-    2. Get the page number at the beginning of an extract where the key was taken from. If uncertain, respond with -1.
+    1. If you don't know the answer, give your best guess.
+    2. Get the page number at the beginning of an extract where the key was taken from.
     3. Use the type of the key to help you understand the data.
     4. Use the key description to help you understand the data.
 
@@ -18,8 +18,8 @@ general_form:
 
     [Key]: {k}
 
-    [Key Description]: {description}
+    [Description]: {description}
 
     [Type]: {type}
 
-    [Answer]:
+    [Value]:

@@ -1,6 +1,6 @@
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From, To, Bcc, Attachment
-from utils import fill_html
+from sendgrid.helpers.mail import Mail, From, To, Bcc
+from extra.utils import fill_html
 from dotenv import load_dotenv
 import os
 

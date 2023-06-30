@@ -1,15 +1,14 @@
 import os
 import pandas as pd
 import numpy as np
-from logger_config import setup_logger
-from constants import DTYPE_PDF, DTYPE_CSV
-from upstream_object import DataLoader
+from constants import DTYPE_PDF
 from db_utils import read_from_db, write_many_to_db, write_to_db
 from typing import List
-
-logger = setup_logger(__name__)
+import openai
+import time
 import json
-from chatapi import chat_completion, MODEL_MAP
+from extra.logger_config import setup_logger
+logger = setup_logger(__name__)
 
 def remove_newlines(serie):
     serie = serie.str.replace('\n', ' ')
@@ -149,14 +148,11 @@ def get_passages_from_embeddings(e_df, max_len=1800, n_passages=2):
     return sources
 
 def read_embeddings_from_db(sources_ids: List[str]):
-    embeddings_sql = 'SELECT * FROM embeddings WHERE LENGTH(text) > (LENGTH(title) + 1) AND source_id IN (%s)' % ','.join('?' * len(sources_ids))
+    embeddings_sql = 'SELECT * FROM embeddings WHERE source_id IN (%s)' % ','.join('?' * len(sources_ids))
     data = read_from_db(embeddings_sql, [*sources_ids]) 
     df = pd.DataFrame(data)
-    # check if embeddings are already computed
-    if df.embeddings.iloc[0] == '':
-        return None
+    if df.embeddings.iloc[0] == '': return None
     df['embeddings'] = df.embeddings.apply(eval).apply(np.array)
-    print('loading embedings with shape', df.shape)
     return df
 
 def compute_distances(data_df, question_df):
@@ -164,8 +160,6 @@ def compute_distances(data_df, question_df):
     return data_df
 
 def get_q_embeddings(q, engine='text-embedding-ada-002', max_retries=5):
-    import openai
-    import time
     openai.api_key = os.environ['OPENAI_KEY']
     retry_delay = 1
     backoff = 2

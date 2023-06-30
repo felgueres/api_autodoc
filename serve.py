@@ -1,15 +1,11 @@
-from logger_config import setup_logger
-import time
 from flask import Flask, request, jsonify, render_template, redirect, send_file
-from auth import jwt_auth
 from dotenv import load_dotenv
 from db_utils import create_store, write_to_db, read_from_db, write_many_to_db
 from constants import MAX_FILE_SIZE, EMPTY_STRING, MIMETYPES, PLANS
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To, Bcc
-from utils import fill_html, generate_uuid
 import os
-from send_email import send_upload_email
+from extra.send_email import send_upload_email
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from filequeue import FileQueue
@@ -21,6 +17,9 @@ import concurrent
 import json
 from embeddings import read_embeddings_from_db
 from concurrent.futures import ThreadPoolExecutor
+from extra.utils import fill_html, generate_uuid
+from extra.auth import jwt_auth
+from extra.logger_config import setup_logger
 
 class RetriableError(Exception):
     pass
@@ -29,14 +28,13 @@ logger = setup_logger(__name__)
 load_dotenv()
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE  # 16MB
+
 CORS(app)
 
 app.secret_key = os.getenv("SECRET_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 SG_API_KEY = os.getenv("SG_API_KEY")
-
-TEST_STREAM = True 
 
 create_store()
 file_queue = FileQueue()
@@ -466,8 +464,6 @@ def extract(user_id):
     prompt = configs['general_form']['prompt']
 
     d_out = {}
-    global time
-    time = time.time()
 
     def extract_field(field, d_embeddings_df, prompt):
         k = field['name']
@@ -528,7 +524,7 @@ def extract(user_id):
         d_out = {}
         for future in concurrent.futures.as_completed(futures):
             k,v,pn = future.result()
-            logger.info(f'Extracted {k} with value {v}')
+            logger.info(f'Extracted (k,v,pn): {k} , {v}, {pn}')
             d_out[k] = {'value': v, 'page_number': pn} 
 
     return jsonify({'facts': d_out}), 200

@@ -29,7 +29,7 @@ class FileQueue:
     def add(self, user, fname, dtype, source_id=None):
         '''Add file to db and return source_id
         '''
-        from utils import generate_uuid
+        from extra.utils import generate_uuid
         source_id = generate_uuid(length=8) if not source_id else source_id
         add_file_q = f'INSERT INTO {DATA_SOURCES_TABLE} (source_id,user_id,name,dtype) VALUES (?,?,?,?)'
         file_entry = [source_id,user,fname,dtype]
