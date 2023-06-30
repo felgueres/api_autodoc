@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from constants import DTYPE_PDF
-from db_utils import read_from_db, write_many_to_db, write_to_db
+from db import read_from_db, write_many_to_db, write_to_db
 from typing import List
 import openai
 import time
@@ -96,7 +96,7 @@ def pdf_to_embeddings(fname, user_id, source_id):
         blob_entry = (source_id, data, DTYPE_PDF)
         write_to_db(add_blob_q, blob_entry)
 
-        df = pdf_to_df(raw_path, fname, source_id)
+        df = pdf_to_df(raw_path, source_id)
         df = prepare_df(df)
         df = get_embeddings(df)
         df['embeddings'] = df.embeddings.apply(lambda x: str(x)) 
@@ -200,7 +200,6 @@ def fetch_passages(d_embeddings_df, max_passages=5, sort_by='distance', ascendin
                         'score': 0, 
                         'n_tokens': row['n_tokens'], 
                         'page_number': m['page_number']})
-    print(sources)
     return sources 
 
 def cos_sim(a,b):

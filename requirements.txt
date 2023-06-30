@@ -9,9 +9,8 @@ PyPDF2==3.0.1
 pandas==1.5.2
 Flask-Cors==3.0.10
 beautifulsoup4==4.11.2
-selenium==4.9.1
 pyjwt==2.7.0
 pycryptodome==3.15.0
 backoff==2.2.1
-PyYAML
-pytest
+PyYAML==6.0
+pytest==7.4.0

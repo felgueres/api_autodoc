@@ -1,4 +1,4 @@
-# Creates users and logs tables in sqlite.db
+# contains db creation and utilities for sqlite3 
 import sqlite3
 from constants import SQLITE_DB
 

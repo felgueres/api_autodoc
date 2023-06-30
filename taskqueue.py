@@ -1,11 +1,11 @@
 import threading
 import time
 from constants import SQLITE_DB, DATA_SOURCES_TABLE
-from  db_utils import write_to_db, read_from_db
+from  db import write_to_db, read_from_db
 from embeddings import pdf_to_embeddings 
 
-import logging as pylogging
-logger = pylogging.getLogger(__name__)
+from extra.logger_config import setup_logger
+logger = setup_logger(__name__)
 
 class FileQueue:
     def __init__(self, db_path=SQLITE_DB, table_name=DATA_SOURCES_TABLE, max_size=30):
