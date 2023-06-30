@@ -8,10 +8,10 @@ import time
 import json
 
 from db import read_from_db, write_many_to_db, write_to_db
-from extra.logger_config import setup_logger
 from numpy import dot 
 from numpy.linalg import norm
 
+from extra.logger_config import setup_logger
 logger = setup_logger(__name__)
 
 def cos_sim(a,b): return dot(a, b)/(norm(a)*norm(b))
@@ -46,23 +46,23 @@ def pdf_to_df(fpath, source_id):
     return df
 
 def split_into_many(page_number, text, tokenizer, max_tokens=500):
-    sentences = text.split('. ')
-    n_tokens = [len(tokenizer.encode(" " + sentence)) for sentence in sentences]
-
+    words = text.split(' ')
+    n_tokens = [len(tokenizer.encode(w)) for w in words]
     chunks = []
     chunk = []
     tokens_so_far = 0
 
-    for sentence, token in zip(sentences, n_tokens):
-        if tokens_so_far + token > max_tokens:
-            chunks.append((page_number, ". ".join(chunk) + "."))
+    for w, tokens in zip(words, n_tokens):
+        if tokens_so_far + tokens + 1 > max_tokens:
+            chunks.append((page_number, " ".join(chunk)))
             chunk = []
             tokens_so_far = 0
-        if token > max_tokens:
-            continue
-        chunk.append(sentence)
-        tokens_so_far += token + 1
+        chunk.append(w)
+        tokens_so_far += tokens 
 
+    # recover last chunk
+    if len(chunk) > 0:
+        chunks.append((page_number, " ".join(chunk)))
     return chunks
 
 def shorten_text(df, tokenizer, max_tokens=500):
@@ -71,8 +71,10 @@ def shorten_text(df, tokenizer, max_tokens=500):
         if row['text'] is None:
             continue
         if row['n_tokens'] > max_tokens:
+            print('Shortening page {}'.format(row['page_number']))
             shortened += split_into_many(row['page_number'], row['text'], tokenizer)
         else:
+            print('Keeping page {}'.format(row['page_number']))
             shortened.append((row['page_number'],row['text']))
     return shortened
 

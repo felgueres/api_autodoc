@@ -2,6 +2,7 @@ import os
 import openai
 import backoff
 from extra.logger_config import setup_logger
+import pprint
 logger = setup_logger(__name__)
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,7 +22,7 @@ def non_retriable(e):
     return not isinstance(e, retriable_exceptions)
 
 def handle_success(details):
-    logger.info(f"Success: {details}")
+    pprint.pprint(details)
 
 @backoff.on_exception(backoff.expo, openai.error.OpenAIError, max_tries=5, giveup=non_retriable, on_success=handle_success)
 def completions_with_backoff(**kwargs):

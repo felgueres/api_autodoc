@@ -139,7 +139,6 @@ def update_bot(user_id, bot_id):
     system_message = data.get('system_message')
     metadata = data.get('metadata', None)
     visibility = data.get('visibility', None)
-
     source_id = sources[0] if sources else None 
 
     if not source_id:

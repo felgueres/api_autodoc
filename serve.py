@@ -5,7 +5,7 @@ from constants import MAX_FILE_SIZE
 from flask_cors import CORS
 from taskqueue import FileQueue
 from resources import resources_bp
-from core import core_bp
+from autodoc import core_bp
 from user import user_bp
 import os
 
@@ -36,6 +36,3 @@ def page_not_found(_):
 
 @app.route('/')
 def index(): return redirect("https://autodocai.com", code=302)
-
-if __name__ == '__main__':
-    app.run()

@@ -1,6 +1,6 @@
 from . import core_bp
 from embeddings import read_embeddings_from_db, get_q_embeddings, fetch_passages, compute_distances
-from core.utils import get_template, RetriableError
+from autodoc.utils import get_template, RetriableError
 from extra.auth import jwt_auth
 from gpt import gpt
 import concurrent
@@ -18,7 +18,8 @@ logger = setup_logger(__name__)
 def extract(user_id):
     data = request.json
     fields = get_template(data['template_id'])
-    d_embeddings_df = read_embeddings_from_db([data['sources'][0]['source_id']])
+    sid = data['sources'][0]['source_id']
+    d_embeddings_df = read_embeddings_from_db([sid])
     configs = yaml.safe_load(open('./prompt/prompts.yaml','r'))
     prompt = configs['general_form']['prompt']
     num_threads = 3
@@ -54,12 +55,12 @@ def extract_field(field, d_embeddings_df, prompt):
                         'type': type,
                         'description': description
                     },
-                    'page_number': {
-                        'type': 'number',
-                        'description': 'Page number where the extract was found. If the extract is not found, the page number is -1.'
-                    }
+                    # 'page_number': {
+                    #     'type': 'number',
+                    #     'description': 'Page number where the extract was found. If the extract is not found, the page number is -1.'
+                    # }
             },
-            'required': [k, 'page_number']}
+            'required': [k]}
         }
     ]
 
@@ -71,7 +72,7 @@ def extract_field(field, d_embeddings_df, prompt):
             res = json.loads(res['choices'][0]['message']['function_call']['arguments'])
             if res[k] == '' or res[k] == -1:
                 raise RetriableError
-            return k, res[k], res['page_number'] 
+            return k, res[k], -1 
 
         except RetriableError:
             retry_count += 1
