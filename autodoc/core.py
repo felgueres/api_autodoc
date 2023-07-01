@@ -39,26 +39,22 @@ def extract_field(field, d_embeddings_df, prompt):
     q_embeddings = get_q_embeddings(q=f'What is the {k}?')
     d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
     sources = fetch_passages(d_embeddings_df, max_passages=3, sort_by='distance', ascending=False)
-    extracts = ['Page ' + str(s['page_number']) + '. ' + s['text'] for s in sources]
-    extracts = '---\n'.join(extracts)
+    extracts = ['<SOE> Page [' + str(s['page_number']) + '] ' + s['text'] for s in sources]
+    extracts = '<EOE>'.join(extracts)
 
     prompt = prompt.format(extracts=extracts, k=k, type=type, description=description)
 
     functions = [
         {
-            'name': 'extract',
-            'description': 'Extract fields from a form given extracts from a filled out form', 
+            'name': 'extract_field',
+            'description': 'Extracts a field from a document.', 
             'parameters': {
                 'type': 'object',
                 'properties': {
                     k: {
                         'type': type,
                         'description': description
-                    },
-                    # 'page_number': {
-                    #     'type': 'number',
-                    #     'description': 'Page number where the extract was found. If the extract is not found, the page number is -1.'
-                    # }
+                    }
             },
             'required': [k]}
         }
@@ -70,9 +66,8 @@ def extract_field(field, d_embeddings_df, prompt):
         try:
             res = gpt(prompt=prompt,functions=functions)
             res = json.loads(res['choices'][0]['message']['function_call']['arguments'])
-            if res[k] == '' or res[k] == -1:
-                raise RetriableError
-            return k, res[k], -1 
+            if res[k].strip() == '': raise RetriableError
+            return k, res[k], sources[0]['page_number'] 
 
         except RetriableError:
             retry_count += 1

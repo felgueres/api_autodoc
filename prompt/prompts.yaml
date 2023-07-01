@@ -1,25 +1,18 @@
 general_form:
   prompt: |-
-    You are an expert analyst trained to extract data from varied forms into structured data.
-    Given the following page-numbered extracts, get the value that corresponds to a given key.
-    Make sure to follow these instructions:
-
+    You are an expert analyst trained to extract data from messy data.
+    Given the following extracts that starting with <SOE> and end with <EOE>, extract the information described by the key and description.
     Instructions:
-    1. Get the page number at the beginning of an extract where the key was taken from.
-    2. Use the type of the key to help you understand the data.
-    3. Use the key description to help you understand the data.
-
-
-    [Key to extract]: {k}
-
-    [Key description]: {description}
-
-    [Key Type]: {type}
+    1. Don't include the <SOE> and <EOE> tags in your answer. 
+    2. Don't include the page number in your answer.
 
     [START OF EXTRACTS]
-
-    [Extracts]: {extracts}
-
+    {extracts}
     [END OF EXTRACTS]
 
-    [Key Value]:
+    [START OF KEY]
+    [Key to extract]: {k}
+    [Key description]: {description}
+    [END OF KEY]
+
+    [Answer]:

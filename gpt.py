@@ -26,9 +26,9 @@ def handle_success(details):
 
 @backoff.on_exception(backoff.expo, openai.error.OpenAIError, max_tries=5, giveup=non_retriable, on_success=handle_success)
 def completions_with_backoff(**kwargs):
-    return openai.ChatCompletion.create(**kwargs, request_timeout=8)
+    return openai.ChatCompletion.create(**kwargs, timeout=2)
 
-def gpt(prompt, functions, model='gpt-3.5-turbo-0613', temperature=0.2, max_tokens=1000, n=1, stop=None):
+def gpt(prompt, functions, model='gpt-3.5-turbo-0613', temperature=0.5, max_tokens=1000, n=1, stop=None):
     messages = [{'role': 'user', 'content': prompt}]
     res = completions_with_backoff(messages=messages, functions=functions, model=model, temperature=temperature, max_tokens=max_tokens, n=n, stop=stop)
     return res
