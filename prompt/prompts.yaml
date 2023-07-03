@@ -1,10 +1,12 @@
-general_form:
+extract_w_func:
   prompt: |-
     You are an expert analyst trained to extract data from messy data.
-    Given the following extracts that starting with <SOE> and end with <EOE>, extract the information described by the key and description.
-    Instructions:
-    1. Don't include the <SOE> and <EOE> tags in your answer. 
+    Given the following extracts that starting with <SOE> and end with <EOE> and a key, extract the value.
+
+    Before you start, please read the following instructions: 
+    1. Don't include <SOE> <EOE> tags in your answer. 
     2. Don't include the page number in your answer.
+    3. Use the description of the key to help you find the value.
 
     [START OF EXTRACTS]
     {extracts}
@@ -15,4 +17,26 @@ general_form:
     [Key description]: {description}
     [END OF KEY]
 
+    [Key value]:
+
+extract_w_completion:
+  prompt: |-
+    You are an expert analyst trained to extract data from text extracts.
+    The following are extracts from long documents. 
+    You are given a keyword and a short description of that keyword. 
+    Your task is to extract the content associated to the keyword as a summary.
+
+    Please follow these instructions: 
+    1. Don't include <SOE> <EOE> tags in your answer. 
+    2. Don't include the page number in your answer.
+    3. Use the description of the key to help you find the value.
+    4. If you can't find the value, return an empty string. 
+    5. Never add extra commentary or warnings to the answer.
+
+    [START OF EXTRACTS]
+    {extracts}
+    [END OF EXTRACTS]
+
+    [Keyword to extract]: {k}
+    [Keyword description]: {description}
     [Answer]:

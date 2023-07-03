@@ -161,8 +161,6 @@ def fetch_passages(d_embeddings_df, max_passages=5, sort_by='distance', ascendin
                         'score': 0, 
                         'n_tokens': row['n_tokens'], 
                         'page_number': m['page_number']})
-    # sort by id 
     sources = sorted(sources, key=lambda x: x['page_number'], reverse=False)
-    # print pages
     print('Pages: ', [s['page_number'] for s in sources])
     return sources 

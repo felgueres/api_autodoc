@@ -21,10 +21,10 @@ def extract(user_id):
     sid = data['sources'][0]['source_id']
     d_embeddings_df = read_embeddings_from_db([sid])
     configs = yaml.safe_load(open('./prompt/prompts.yaml','r'))
-    prompt = configs['general_form']['prompt']
+    prompt = configs['extract_w_completion']['prompt']
     num_threads = 3
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(extract_field, field, d_embeddings_df, prompt) for field in fields]
+        futures = [executor.submit(extract_field_v2, field, d_embeddings_df, prompt) for field in fields]
         d_out = {}
         for future in concurrent.futures.as_completed(futures):
             k,v,pn = future.result()
@@ -46,14 +46,14 @@ def extract_field(field, d_embeddings_df, prompt):
 
     functions = [
         {
-            'name': 'extract_field',
-            'description': 'Extracts a field from a document.', 
+            'name': 'get_summary_extract',
+            'description': 'Retrieves the value for a given key from the extracts.',
             'parameters': {
                 'type': 'object',
                 'properties': {
                     k: {
                         'type': type,
-                        'description': description
+                        'description': 'The topic to get a summary for.'
                     }
             },
             'required': [k]}
@@ -76,3 +76,22 @@ def extract_field(field, d_embeddings_df, prompt):
 
         except Exception as e:
             return k, '', -1
+
+def extract_field_v2(field, d_embeddings_df, prompt):
+    k = field['name']
+    type = 'string' if field['type'].lower() == 'text' else 'number'
+    description = field['description']
+    q_embeddings = get_q_embeddings(q=f'What is the {k}?')
+    d_embeddings_df = compute_distances(d_embeddings_df, q_embeddings)
+    sources = fetch_passages(d_embeddings_df, max_passages=3, sort_by='distance', ascending=False)
+    extracts = ['<SOE> Page [' + str(s['page_number']) + '] ' + s['text'] for s in sources]
+    extracts = '<EOE>'.join(extracts)
+    prompt = prompt.format(extracts=extracts, k=k, type=type, description=description)
+
+    try:
+        res = gpt(prompt=prompt)
+        message = res['choices'][0]['message']['content'].strip()
+        return k, message, sources[0]['page_number'] 
+
+    except Exception as e:
+        return k, '', -1
