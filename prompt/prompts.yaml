@@ -30,8 +30,8 @@ extract_w_completion:
     1. Don't include <SOE> <EOE> tags in your answer. 
     2. Don't include the page number in your answer.
     3. Use the description of the key to help you find the value.
-    4. If you can't find the value, return an empty string. 
-    5. Never add extra commentary or warnings to the answer.
+    4. Never add extra commentary or warnings to the answer.
+    5. If you can't find the value, return ''
 
     [START OF EXTRACTS]
     {extracts}
