@@ -4,10 +4,8 @@ from embeddings import read_embeddings_from_db, get_q_embeddings, fetch_passages
 from autodoc.utils import get_template
 from extra.auth import jwt_auth
 from gpt import gpt
-import concurrent
-import json
 from embeddings import read_embeddings_from_db
-from flask import jsonify, request, Response
+from flask import jsonify, request
 from extra.logger_config import setup_logger
 
 logger = setup_logger(__name__)
