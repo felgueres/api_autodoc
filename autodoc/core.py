@@ -22,8 +22,7 @@ def extract(user_id):
     prompt = configs['extract_w_completion']['prompt']
     k, message, page_number = extract_field(template[template_idx], d_embeddings_df, prompt)
     d_out = {'field': k, 'value': message, 'page_number': page_number}
-    return jsonify({'object': 'extracted_field',
-                    'data': d_out}), 200
+    return jsonify({'object': 'extracted_field', 'data': d_out}), 200
 
 def extract_field(field, d_embeddings_df, prompt):
     k = field['name']
